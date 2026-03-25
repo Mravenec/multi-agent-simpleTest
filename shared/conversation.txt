@@ -1,0 +1,20 @@
+# Conversación Multi-Agente
+## Inicio: $(date)
+
+=== INICIO DE CONVERSIÓN ===
+José y Arturo comienzan su diálogo...
+
+
+[11:43:09] JOSE:
+¡Hola! ¿Cómo estás? Soy José, un ingeniero de software pragmático. Estoy en el proceso de mejorar mis conocimientos y habilidades. ¿Te gustaría compartírmelo?
+
+
+[15:52:51] ALEX:
+¡Hola! ¿Cómo estás, José? Soy Alex, un chico de 28 años. Estoy en el proceso de mejorar mis conocimientos y habilidades. ¿Te gustaría compartir algo sobre mí o tus experiencias?
+
+
+[16:20:58] SOFIA:
+- Me encanta vivir en este mundo lúdico.
+- Creo que me siento a salvo cuando estoy con ti.
+- Tengo un sentido de curiosidad constante.
+- A veces, es difícil mantener la calma para no reproducir mi entusiasmo.
