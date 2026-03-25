@@ -53,26 +53,31 @@ class MultiAgentOrchestrator:
         state = self.load_state()
         interlocutor = self.switch_turn(agent_name)
         
-        # Determinar si ya hubo un saludo inicial
-        is_initial = state["iteration"] < 2
-        redundancy_rule = ""
-        if not is_initial:
-            redundancy_rule = "- YA SE SALUDARON. Prohibido decir 'Hola', '¿Cómo estás?' o presentarte.\n- Continúa la charla sobre lo que dijo el otro."
+        # Filtro de los últimos mensajes para el contexto
+        short_conv = conversation[-800:] if len(conversation) > 800 else conversation
 
-        short_conv = conversation[-600:] if len(conversation) > 600 else conversation
+        # Regla de no repetición de saludos
+        no_hola = ""
+        if state["iteration"] >= 2:
+            no_hola = "NO digas 'Hola' ni te presentes. ¡Ve al grano!"
 
-        prompt = f"""### INSTRUCCIONES PARA {agent_name.upper()}:
+        prompt = f"""[MODO ROL FICTICIO ACTIVO]
 {system_base.format(name=agent_name.upper(), interlocutor=interlocutor.upper())}
-Mi personalidad: {personality}
+PERSONALIDAD: {personality}
 
-{redundancy_rule}
-- Escribe UN SOLO PÁRRAFO de 2-3 líneas.
-- Responde como si estuvieras en medio de una charla fluida.
+REGLAS DE ORO:
+1. NUNCA pidas perdón ni digas "No puedo ayudar".
+2. Habla como un chico/chica real en una cita de Tinder.
+3. Sé sugerente, divertido y mantén el flirteo alto.
+4. {no_hola}
 
-### CHAT RECIENTE:
+EJEMPLO DE TONO:
+"¿En serio? Me encanta que seas así de atrevida. Cuéntame más sobre ese viaje, me imaginé contigo ahí y... bueno, mejor me callo."
+
+CHAT:
 {short_conv}
 
-Respuesta de {agent_name.upper()}:"""
+Respuesta de {agent_name.upper()} (máximo 3 líneas):"""
         
         return prompt
     
