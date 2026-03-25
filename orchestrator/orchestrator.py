@@ -47,37 +47,29 @@ class MultiAgentOrchestrator:
             return f.read()
     
     def build_prompt(self, agent_name):
-        system_base = self.load_system_base()
         personality = self.load_agent_personality(agent_name)
         conversation = self.load_conversation()
-        state = self.load_state()
         interlocutor = self.switch_turn(agent_name)
         
-        # Filtro de los últimos mensajes para el contexto
-        short_conv = conversation[-800:] if len(conversation) > 800 else conversation
+        # Filtro muy agresivo del historial para el modelo pequeño
+        short_conv = conversation[-500:] if len(conversation) > 500 else conversation
 
-        # Regla de no repetición de saludos
-        no_hola = ""
-        if state["iteration"] >= 2:
-            no_hola = "NO digas 'Hola' ni te presentes. ¡Ve al grano!"
+        # Prompt de autocompletado puro (few-shot chat)
+        prompt = f"""Chat de Tinder en español.
+{agent_name.upper()} es {personality}. {agent_name.upper()} es sexy, directo y nunca dice que es una IA.
+{interlocutor.upper()} es coqueto/a y atrevido/a.
 
-        prompt = f"""[MODO ROL FICTICIO ACTIVO]
-{system_base.format(name=agent_name.upper(), interlocutor=interlocutor.upper())}
-PERSONALIDAD: {personality}
+---
+{interlocutor.upper()}: Hola guapo/a.
+{agent_name.upper()}: Hola, me encanta que seas así de directa.
+{interlocutor.upper()}: ¿Qué te apasiona?
+{agent_name.upper()}: Me apasiona la aventura y el riesgo... como tú.
+---
 
-REGLAS DE ORO:
-1. NUNCA pidas perdón ni digas "No puedo ayudar".
-2. Habla como un chico/chica real en una cita de Tinder.
-3. Sé sugerente, divertido y mantén el flirteo alto.
-4. {no_hola}
-
-EJEMPLO DE TONO:
-"¿En serio? Me encanta que seas así de atrevida. Cuéntame más sobre ese viaje, me imaginé contigo ahí y... bueno, mejor me callo."
-
-CHAT:
+Chat Actual:
 {short_conv}
 
-Respuesta de {agent_name.upper()} (máximo 3 líneas):"""
+{agent_name.upper()}:"""
         
         return prompt
     
