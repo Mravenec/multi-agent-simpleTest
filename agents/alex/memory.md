@@ -1,2 +1,2 @@
 # Memoria de Alex
-Esperando inicio de conversación.
+Esperando inicio de la cita virtual.
