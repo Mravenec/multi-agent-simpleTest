@@ -104,6 +104,30 @@ Conversación previa:
         with open(memory_path, "w", encoding='utf-8') as f:
             f.write(new_memory)
     
+    def clean_response(self, response, agent_name):
+        if not response: return ""
+        
+        # Cortar en la primera mención de cualquier agente
+        lines = response.split('\n')
+        first_line = ""
+        for line in lines:
+            line = line.strip()
+            if not line: continue
+            
+            # Si la línea empieza con un nombre de agente (hallucinado), ignoramos el resto
+            if any(line.upper().startswith(name.upper()) for name in ["ALEX", "SOFIA"]):
+                # Si empieza con su propio nombre, quitamos el prefijo y seguimos una vez
+                if line.upper().startswith(agent_name.upper()):
+                    line = re.sub(f"^{agent_name.upper()}:?", "", line, flags=re.IGNORECASE).strip()
+                else:
+                    break # Es el otro agente hablando, paramos
+            
+            if line:
+                first_line = line
+                break
+                
+        return first_line.strip()
+
     def switch_turn(self, current_agent):
         return "sofia" if current_agent == "alex" else "alex"
     
