@@ -50,20 +50,24 @@ class MultiAgentOrchestrator:
         system_base = self.load_system_base()
         personality = self.load_agent_personality(agent_name)
         conversation = self.load_conversation()
+        state = self.load_state()
         interlocutor = self.switch_turn(agent_name)
         
-        # Tomar solo los últimos 500 caracteres de la conversación para no saturar al modelo pequeño
-        short_conv = conversation[-500:] if len(conversation) > 500 else conversation
+        # Determinar si ya hubo un saludo inicial
+        is_initial = state["iteration"] < 2
+        redundancy_rule = ""
+        if not is_initial:
+            redundancy_rule = "- YA SE SALUDARON. Prohibido decir 'Hola', '¿Cómo estás?' o presentarte.\n- Continúa la charla sobre lo que dijo el otro."
 
-        prompt = f"""### INSTRUCCIONES:
-- Eres {agent_name.upper()}.
-- Habla en PRIMERA PERSONA como un chico/chica de Tinder.
+        short_conv = conversation[-600:] if len(conversation) > 600 else conversation
+
+        prompt = f"""### INSTRUCCIONES PARA {agent_name.upper()}:
+{system_base.format(name=agent_name.upper(), interlocutor=interlocutor.upper())}
+Mi personalidad: {personality}
+
+{redundancy_rule}
 - Escribe UN SOLO PÁRRAFO de 2-3 líneas.
-- Flirtea y sé directo.
-- NO menciones a José ni Arturo.
-
-### EJEMPLO:
-"Hola, me encantó ver tu perfil, tienes una sonrisa que transmite mucha luz. Me encantaría saber qué es lo que más te apasiona hacer en un día como hoy."
+- Responde como si estuvieras en medio de una charla fluida.
 
 ### CHAT RECIENTE:
 {short_conv}
