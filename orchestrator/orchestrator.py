@@ -14,63 +14,68 @@ class MultiAgentOrchestrator:
         self.logs_path = os.path.join(base_path, "logs")
         
     def load_state(self):
-        with open(os.path.join(self.shared_path, "state.json"), "r") as f:
+        with open(os.path.join(self.shared_path, "state.json"), "r", encoding='utf-8') as f:
             return json.load(f)
     
     def save_state(self, state):
-        with open(os.path.join(self.shared_path, "state.json"), "w") as f:
+        with open(os.path.join(self.shared_path, "state.json"), "w", encoding='utf-8') as f:
             json.dump(state, f, indent=2)
     
     def load_agent_config(self, agent_name):
         config_path = os.path.join(self.agents_path, agent_name, "config.json")
-        with open(config_path, "r") as f:
+        with open(config_path, "r", encoding='utf-8') as f:
             return json.load(f)
     
     def load_agent_personality(self, agent_name):
         personality_path = os.path.join(self.agents_path, agent_name, "personality.md")
-        with open(personality_path, "r") as f:
+        with open(personality_path, "r", encoding='utf-8') as f:
             return f.read()
     
     def load_agent_memory(self, agent_name):
         memory_path = os.path.join(self.agents_path, agent_name, "memory.md")
-        with open(memory_path, "r") as f:
+        with open(memory_path, "r", encoding='utf-8') as f:
             return f.read()
     
     def load_conversation(self):
         conv_path = os.path.join(self.shared_path, "conversation.txt")
-        with open(conv_path, "r") as f:
+        with open(conv_path, "r", encoding='utf-8') as f:
             return f.read()
     
     def load_system_base(self):
         system_path = os.path.join(self.prompts_path, "system_base.md")
-        with open(system_path, "r") as f:
+        with open(system_path, "r", encoding='utf-8') as f:
             return f.read()
     
     def build_prompt(self, agent_name):
         system_base = self.load_system_base()
         personality = self.load_agent_personality(agent_name)
-        memory = self.load_agent_memory(agent_name)
         conversation = self.load_conversation()
+        interlocutor = self.switch_turn(agent_name)
         
-        prompt = f"""{system_base}
+        # Tomar solo los últimos 500 caracteres de la conversación para no saturar al modelo pequeño
+        short_conv = conversation[-500:] if len(conversation) > 500 else conversation
 
-{personality}
+        prompt = f"""{system_base.format(name=agent_name.upper(), interlocutor=interlocutor.upper())}
+Mi personalidad: {personality}
+Chat:
+{short_conv}
 
-{memory}
-
-Conversación anterior:
-{conversation}
-
-RESPONDE MÁXIMO 2 LÍNEAS. Sé directo y conciso."""
+Respuesta de {agent_name.upper()}:"""
         
         return prompt
     
     def call_ollama(self, prompt, model, temperature=0.7):
         try:
+            # Usar 'ollama run' con el prompt como argumento
+            # Para modelos pequeños, a veces es mejor un prompt de sistema explícito
             cmd = ["ollama", "run", model, prompt]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120, encoding='utf-8')
             if result.returncode == 0:
-                return result.stdout.strip()
+                response = result.stdout.strip()
+                # Limpieza de posibles alucinaciones de prefijos
+                if ":" in response[:15]:
+                    response = response.split(":", 1)[-1].strip()
+                return response
             else:
                 return f"Error: {result.stderr}"
         except subprocess.TimeoutExpired:
@@ -82,18 +87,18 @@ RESPONDE MÁXIMO 2 LÍNEAS. Sé directo y conciso."""
         conv_path = os.path.join(self.shared_path, "conversation.txt")
         timestamp = datetime.now().strftime("%H:%M:%S")
         
-        with open(conv_path, "a") as f:
+        with open(conv_path, "a", encoding='utf-8') as f:
             f.write(f"\n\n[{timestamp}] {agent_name.upper()}:\n{response}\n")
     
     def update_memory(self, agent_name, new_response):
         memory_path = os.path.join(self.agents_path, agent_name, "memory.md")
-        with open(memory_path, "r") as f:
+        with open(memory_path, "r", encoding='utf-8') as f:
             current_memory = f.read()
         
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
         new_memory = f"{current_memory}\n\n[{timestamp}] {new_response}"
         
-        with open(memory_path, "w") as f:
+        with open(memory_path, "w", encoding='utf-8') as f:
             f.write(new_memory)
     
     def switch_turn(self, current_agent):
@@ -120,7 +125,7 @@ RESPONDE MÁXIMO 2 LÍNEAS. Sé directo y conciso."""
         
         if response and not response.startswith("Error:"):
             # Check for completion keywords
-            completion_keywords = ["sí", "quiero", "vamos", "claro", "ahora", "juntos"]
+            completion_keywords = ["sexo", "hotel", "cama", "desnudo", "deseo", "hacerlo"]
             response_lower = response.lower()
             
             if any(keyword in response_lower for keyword in completion_keywords):
@@ -153,7 +158,7 @@ RESPONDE MÁXIMO 2 LÍNEAS. Sé directo y conciso."""
     def log_interaction(self, message):
         log_path = os.path.join(self.logs_path, "run.log")
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with open(log_path, "a") as f:
+        with open(log_path, "a", encoding='utf-8') as f:
             f.write(f"[{timestamp}] {message}\n")
 
 if __name__ == "__main__":
