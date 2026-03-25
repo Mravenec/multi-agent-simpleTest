@@ -51,23 +51,17 @@ class MultiAgentOrchestrator:
         conversation = self.load_conversation()
         interlocutor = self.switch_turn(agent_name)
         
-        # Filtro muy agresivo del historial para el modelo pequeño
-        short_conv = conversation[-500:] if len(conversation) > 500 else conversation
+        # Últimos 3 mensajes para contexto ligero
+        lines = [l for l in conversation.split('\n') if l.strip()]
+        last_context = "\n".join(lines[-4:]) if len(lines) > 4 else "\n".join(lines)
 
-        # Prompt de autocompletado puro (few-shot chat)
-        prompt = f"""Chat de Tinder en español.
-{agent_name.upper()} es {personality}. {agent_name.upper()} es sexy, directo y nunca dice que es una IA.
-{interlocutor.upper()} es coqueto/a y atrevido/a.
+        # Prompt de una sola línea de respuesta
+        prompt = f"""Chat de Tinder. 
+{agent_name.upper()} es {personality}.
+Responde SOLO con UNA FRASE corta y coqueta.
 
----
-{interlocutor.upper()}: Hola guapo/a.
-{agent_name.upper()}: Hola, me encanta que seas así de directa.
-{interlocutor.upper()}: ¿Qué te apasiona?
-{agent_name.upper()}: Me apasiona la aventura y el riesgo... como tú.
----
-
-Chat Actual:
-{short_conv}
+Conversación previa:
+{last_context}
 
 {agent_name.upper()}:"""
         
@@ -133,6 +127,9 @@ Chat Actual:
         response = self.call_ollama(prompt, config["model"], config["temperature"])
         
         if response and not response.startswith("Error:"):
+            # Clean response to enforce turns
+            response = self.clean_response(response, current_agent)
+
             # Check for completion keywords
             completion_keywords = ["sexo", "hotel", "cama", "desnudo", "deseo"]
             response_lower = response.lower()
