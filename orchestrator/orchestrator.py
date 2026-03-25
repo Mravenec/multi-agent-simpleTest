@@ -55,9 +55,17 @@ class MultiAgentOrchestrator:
         # Tomar solo los últimos 500 caracteres de la conversación para no saturar al modelo pequeño
         short_conv = conversation[-500:] if len(conversation) > 500 else conversation
 
-        prompt = f"""{system_base.format(name=agent_name.upper(), interlocutor=interlocutor.upper())}
-Mi personalidad: {personality}
-Chat:
+        prompt = f"""### INSTRUCCIONES:
+- Eres {agent_name.upper()}.
+- Habla en PRIMERA PERSONA como un chico/chica de Tinder.
+- Escribe UN SOLO PÁRRAFO de 2-3 líneas.
+- Flirtea y sé directo.
+- NO menciones a José ni Arturo.
+
+### EJEMPLO:
+"Hola, me encantó ver tu perfil, tienes una sonrisa que transmite mucha luz. Me encantaría saber qué es lo que más te apasiona hacer en un día como hoy."
+
+### CHAT RECIENTE:
 {short_conv}
 
 Respuesta de {agent_name.upper()}:"""
@@ -125,7 +133,7 @@ Respuesta de {agent_name.upper()}:"""
         
         if response and not response.startswith("Error:"):
             # Check for completion keywords
-            completion_keywords = ["sexo", "hotel", "cama", "desnudo", "deseo", "hacerlo"]
+            completion_keywords = ["sexo", "hotel", "cama", "desnudo", "deseo"]
             response_lower = response.lower()
             
             if any(keyword in response_lower for keyword in completion_keywords):
