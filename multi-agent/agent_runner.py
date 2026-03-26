@@ -170,10 +170,24 @@ def get_last_message(conversation_entries, interlocutor):
     return ""
 
 
+def check_ollama_server():
+    """Check if Ollama server is running and accessible."""
+    url = "http://localhost:11434/api/tags"
+    try:
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+
 # ─────────────────────────────────────────────
 #  LLAMADA A OLLAMA
 # ─────────────────────────────────────────────
 def call_ollama(model, system_prompt, user_prompt, temperature=0.8):
+    if not check_ollama_server():
+        return "Error: Ollama server not running or accessible"
+    
     url = "http://localhost:11434/api/generate"
     payload = {
         "model": model,
@@ -184,14 +198,14 @@ def call_ollama(model, system_prompt, user_prompt, temperature=0.8):
             "temperature": temperature,
             "top_p": 0.9,
             "top_k": 30,
-            "num_predict": 600,
+            "num_predict": 300,
             "stop": ["Alex:", "Sofia:", "ALEX:", "SOFIA:", "assistant:", "User:"]
         }
     }
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=60) as resp:
             if resp.status == 200:
                 result = json.loads(resp.read().decode("utf-8"))
                 return result.get("response", "").strip()
