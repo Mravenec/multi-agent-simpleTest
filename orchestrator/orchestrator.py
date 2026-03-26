@@ -43,25 +43,18 @@ class MultiAgentOrchestrator:
 
     def build_prompt(self, agent_name):
         conversation = self.load_conversation()
-        personality = self.load_agent_personality(agent_name)
         
-        # Extraer esencia ultra-breve (Solo la voz/esencia, sin etiquetas)
-        esencia = re.search(r'- \*\*Esencia\*\*: (.*)', personality)
-        traits = esencia.group(1).strip() if esencia else ""
-        
-        # Historial de chat real
+        # Historial real
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         last_chat = "\n".join(chat_lines[-3:]) if chat_lines else ""
         
-        # PROMPT DE COMPLETADO PURO (Sin corchetes ni instrucciones)
-        # Esto evita que el modelo 0.5B hable de su "memoria" o "sistema".
-        full_prompt = f"""{agent_name.capitalize()} es {traits}.
-
-{last_chat}
-{agent_name.capitalize()}:"""
+        # PROMPT MINIMALISTA (Para Qwen 0.5B)
+        # Identidad en el system_prompt, Chat puro en el user_prompt.
+        system_prompt = f"Eres {agent_name.capitalize()}. Sé breve, natural y misteriosa. No hables de ser una IA."
+        user_prompt = f"{last_chat}\n{agent_name.capitalize()}:"
         
-        return "", full_prompt
+        return system_prompt, user_prompt
     
     def call_ollama(self, system_prompt, user_prompt, model, temperature=0.8):
         try:
