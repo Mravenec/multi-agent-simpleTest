@@ -43,34 +43,33 @@ class MultiAgentOrchestrator:
 
     def build_prompt(self, agent_name):
         conversation = self.load_conversation()
-        personality = self.load_agent_personality(agent_name)
+        # Simplificar: no cargar personalidades complejas que contaminan
         memory = self.load_agent_memory(agent_name)
         
-        # Historial real mejorado - más contexto
+        # Historial simple
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
-        last_chat = "\n".join(chat_lines[-3:]) if chat_lines else ""
+        last_chat = "\n".join(chat_lines[-1:]) if chat_lines else ""
         
-        # Contexto claro de quién es quién
+        # Contexto simple
         other_agent = "sofia" if agent_name == "alex" else "alex"
         
-        # ANCLA DE IDIOMA Y ROL con identidad clara y memoria
-        system_prompt = f"""Eres {agent_name.capitalize()}. Estás hablando con {other_agent.capitalize()}.
-Hablas ESPAÑOL natural. No eres un asistente. Eres una persona real.
+        # Personalidad ultra simple SIN metadatos
+        if agent_name == "alex":
+            personality = "Soy Alex, un chico directo de 28 años. Me gusta la fotografía y los viajes. Soy seguro y un poco misterioso. Nunca saludo con hola."
+        else:
+            personality = "Soy Sofia, una chica misteriosa de 26 años. Soy diseñadora. Respondo con enigmas y no doy respuestas directas. Nunca saludo."
+        
+        # Sistema simple
+        system_prompt = f"""Eres {agent_name.capitalize()}. Hablas con {other_agent.capitalize()}.
 
 {personality}
 
-MEMORIA CONTEXTUAL:
-{memory}
-
-REGLAS ESTRICTAS:
-- NUNCA saludes (hola, cómo estás, buen día)
-- NUNCA te refieras a ti mismo por tu nombre
-- Siempre responde DIRECTAMENTE al último mensaje de {other_agent.capitalize()}
-- Máximo 2 líneas por respuesta
-- Usa tu voz única según tu perfil
-- NUNCA repitas la misma respuesta
-- EVITA patrones repetitivos"""
+REGLAS:
+- Responde directamente al último mensaje
+- Máximo 1 línea
+- NUNCA digas tu nombre
+- NUNCA saludes"""
         
         # Few-shot con personalidad específica
         if agent_name == "alex":
@@ -235,29 +234,28 @@ REGLAS ESTRICTAS:
             state["start_time"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
             print(f"   Alex: 'Iniciaré con mi línea de apertura sobre viajes y fotografía'")
         else:
+            # Obtener último mensaje para contexto - MEJORADO
             last_message = ""
             if chat_lines:
                 last_line = chat_lines[-1]
                 if ":" in last_line:
-                    last_message = last_line.split(":", 1)[1].strip()
+                    # Extraer SOLO el contenido después del timestamp y nombre
+                    parts = last_line.split(":", 2)  # Separar timestamp, nombre, mensaje
+                    if len(parts) >= 3:
+                        last_message = parts[2].strip()
+                    elif len(parts) == 2:
+                        last_message = parts[1].strip()
             
-            print(f"   Analizando último mensaje: '{last_message[:50]}...'")
-            print(f"   Cargando personalidad y memoria...")
+            print(f"   📝 Analizando último mensaje: '{last_message}'")
+            print(f"   🎯 Cargando personalidad simple...")
             
+            # Prefijos ultra simples
             if current_agent == "alex":
-                if "viajes" in last_message.lower() or "foto" in last_message.lower():
-                    prefixes = ["Esa foto...", "Me intriga ese lugar...", "No eres como...", "A ver, "]
-                    print(f"   Alex detecta tema de viajes/fotos")
-                else:
-                    prefixes = ["Me intriga...", "No eres como...", "A ver, ", "Pues ", "La verdad "]
-                    print(f"   Alex usa enfoque general de misterio")
+                prefixes = ["Esa foto...", "Me intriga...", "No eres como..."]
+                print(f"   🔍 Alex usa enfoque directo")
             else:  # sofia
-                if "viajes" in last_message.lower() or "perdiste" in last_message.lower():
-                    prefixes = ["Depende del viaje...", "¿Y tú qué crees?", "Esa pregunta...", "Bueno, "]
-                    print(f"   Sofia responde a tema de viajes")
-                else:
-                    prefixes = ["Depende...", "¿Y tú qué crees?", "Esa pregunta...", "Bueno, ", "A ver, "]
-                    print(f"   Sofia usa enfoque misterioso general")
+                prefixes = ["Depende...", "Quizás...", "¿Y tú qué crees?"]
+                print(f"   🎭 Sofia usa enfoque misterioso")
             
             response = "Error: Sin respuesta."
             
