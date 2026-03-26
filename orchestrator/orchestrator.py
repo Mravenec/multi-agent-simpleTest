@@ -50,18 +50,27 @@ class MultiAgentOrchestrator:
         traits = "Directo, ingenioso" if agent_name == "alex" else "Aventurera, juguetona"
         conversation = self.load_conversation()
         
+        # Historial limpio
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         
-        # Framing de SIMULACIÓN HUMANA PURA
-        # No usamos la palabra "IA", "Modelo" o "Asistente" en ningún lado.
-        system = f"Eres {agent_name.upper()}. {traits}. Hablas con una persona que acabas de conocer. Sé breve, natural y NUNCA pidas disculpas ni digas que no puedes hacer algo."
+        # Framing de GUION DE DRAMA (Evita el modo Asistente)
+        # El modelo solo ve una escena y la completa.
+        system = "" 
         
+        few_shot = """Escena: Un chat de Tinder entre dos personas que se gustan.
+Alex: Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo, ¿cuál fue el último sitio donde te perdiste?
+Sofia: Me has pillado. Fue en las calles de Kioto, sin mapa y con mucha lluvia. ¿Tú eres de los que siempre llevan GPS?
+---"""
+
         if not chat_lines:
-            user = f"Escribe tu primera frase para presentarte de forma interesante:"
+            # INICIO: El modelo completa la primera línea del guion
+            user = f"{few_shot}\nAlex: Tienes" # Pre-llenamos el inicio para forzar el hook
+            if agent_name == "sofia": # Caso raro donde Sofia empiece
+                user = f"{few_shot}\nSofia:"
         else:
             last_msgs = "\n".join(chat_lines[-3:])
-            user = f"Sigue la charla:\n{last_msgs}\n{agent_name.upper()}:"
+            user = f"{few_shot}\n{last_msgs}\n{agent_name.upper()}:"
         
         return system, user
     
