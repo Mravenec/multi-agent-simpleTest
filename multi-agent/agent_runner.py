@@ -92,11 +92,11 @@ def is_similar_to_memory(response, memory_list):
             return True
     return False
 
-def is_duplicate_in_conversation(response, conversation_entries, threshold=0.7):
+def is_duplicate_in_conversation(response, conversation_entries, agent_name, threshold=0.7):
     """Check if response is too similar to recent conversation messages."""
     response_lower = response.lower().strip()
     for entry in conversation_entries[-5:]:  # Last 5 messages
-        if entry["agent"] != interlocutor:  # Skip own messages
+        if entry["agent"] == agent_name:  # Skip own messages
             continue
         msg_lower = entry["message"].lower().strip()
         # Simple similarity: check if 70% of words overlap
@@ -554,7 +554,7 @@ Responde SOLO con tu mensaje de inicio:"""
             response = clean_response(raw_response, agent_name)
 
             # Additional duplicate check against conversation
-            if is_duplicate_in_conversation(response, conversation_entries):
+            if is_duplicate_in_conversation(response, conversation_entries, agent_name):
                 print(c(agent_name, "err", "  └─ Respuesta demasiado similar a conversación reciente, intentando de nuevo..."))
                 # Force fallback
                 response = ""
