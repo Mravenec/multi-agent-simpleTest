@@ -47,17 +47,17 @@ class MultiAgentOrchestrator:
             return f.read()
     
     def build_prompt(self, agent_name):
-        identity = self.load_agent_personality(agent_name).split('\n')[1]
-        conversation = self.load_conversation()
+        # Tomamos solo los rasgos, ignorando el trabajo
+        personality = self.load_agent_personality(agent_name)
+        traits = "Directo, coqueto, ingenioso" if agent_name == "alex" else "Aventurera, apasionada, juguetona"
         
-        # Historial limpio
+        conversation = self.load_conversation()
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
-        last_msgs = "\n".join(chat_lines[-4:]) if len(chat_lines) > 4 else "\n".join(chat_lines)
+        last_msgs = "\n".join(chat_lines[-3:]) if len(chat_lines) > 3 else "\n".join(chat_lines)
 
-        # Framing neutral para evitar bloqueos de seguridad del modelo 0.5B
-        system = f"Eres {identity}. Charla casual. UN PÁRRAFO corto. No digas 'Hola'."
-        user = f"Continúa:\n{last_msgs}\n{agent_name.upper()}:"
+        system = f"Eres {agent_name.upper()}. {traits}. Estás en una cita. Sé natural, breve y NO hables de trabajo ni de IA."
+        user = f"Chat:\n{last_msgs}\n{agent_name.upper()}:"
         
         return system, user
     
@@ -120,30 +120,30 @@ class MultiAgentOrchestrator:
     def clean_response(self, response, agent_name):
         if not response: return ""
         
+        # Eliminar bloques de código o etiquetas extrañas
+        response = re.sub(r'\[\d{2}:\d{2}:\d{2}\]', '', response) # Quitar timestamps alucinados
+        response = re.sub(r'\*\*[^*]+\*\*:', '', response) # Quitar labels en negrita
+        
         lines = response.split('\n')
         clean_lines = []
         for line in lines:
             line = line.strip()
-            if not line: continue
+            if not line or len(line) < 2: continue
             
-            # Cortar si aparecen etiquetas de sistema
-            meta_labels = ["CONVERSACIÓN PREVIA:", "PERSONALIDAD:", "CHAT DE TINDER:", "ESTA ES UNA FICCIÓN"]
-            if any(label in line.upper() for label in meta_labels):
-                break
-
-            # Cortar si el otro agente intenta hablar
-            if any(line.upper().startswith(name.upper()) for name in ["ALEX", "SOFIA"]):
+            # Cortar si aparecen etiquetas de sistema o nombres de agentes
+            meta_labels = ["CONVERSACIÓN PREVIA:", "PERSONALIDAD:", "CHAT:", "FICCIÓN:", "SOFIA:", "ALEX:"]
+            if any(line.upper().startswith(label) for label in meta_labels):
+                # Si empieza con su propio nombre, quitamos el prefijo y seguimos
                 if line.upper().startswith(agent_name.upper()):
-                    # Limpiamos el prefijo si es propio
                     line = re.sub(f"^{agent_name.upper()}:?", "", line, flags=re.IGNORECASE).strip()
                 else:
-                    break # Hallucinación de otro agente, paramos
+                    break # Hallucinación de otro, paramos
             
             if line:
                 clean_lines.append(line)
                 
-        # Retornamos los párrafos encontrados (máximo 2 para no ser pesados)
-        return "\n".join(clean_lines[:2]).strip()
+        # Retornamos solo el primer párrafo sustancial para evitar repeticiones
+        return clean_lines[0].strip() if clean_lines else ""
 
     def switch_turn(self, current_agent):
         return "sofia" if current_agent == "alex" else "alex"

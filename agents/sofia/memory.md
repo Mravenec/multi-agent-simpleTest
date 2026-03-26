@@ -1,2 +1,2 @@
 # Memoria de Sofia
-Inicio de la cita virtual.
+Cero memoria previa. Inicio de interacción natural.

@@ -1,2 +1,2 @@
 # Memoria de Alex
-Inicio de la cita virtual.
+Cero memoria previa. Inicio de interacción natural.
