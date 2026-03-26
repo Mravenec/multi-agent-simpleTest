@@ -59,8 +59,8 @@ class MultiAgentOrchestrator:
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         
-        # Contexto comprimido como nota mental
-        info = f"[{agent_name.upper()} es: {traits}]"
+        # Contexto comprimido (Primera persona para mejor respuesta de Qwen 0.5B)
+        info = f"(Soy {agent_name.capitalize()}: {traits})"
         
         if not chat_lines:
             return "", f"{info}\n{agent_name.upper()}:"
@@ -84,8 +84,10 @@ class MultiAgentOrchestrator:
                 "stream": False,
                 "options": {
                     "temperature": 0.8,
+                    "top_p": 0.9,
+                    "top_k": 40,
                     "num_predict": 80,
-                    "stop": ["\n", "A:", "S:", "Alex:", "Sofia:", "Lo siento", "Disculpa", "asistir"]
+                    "stop": ["\n", "A:", "S:", "Alex:", "Sofia:", "como modelo", "lenguaje"]
                 }
             }
             
