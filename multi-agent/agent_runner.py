@@ -92,7 +92,13 @@ def is_similar_to_memory(response, memory_list):
             return True
     return False
 
-def is_duplicate_in_conversation(response, conversation_entries, agent_name, threshold=0.7):
+def is_fallback_used(fallback, memory_list):
+    """Check if fallback was recently used in memory."""
+    fallback_lower = fallback.lower().strip()
+    for mem in memory_list[-10:]:  # Check last 10 memory entries
+        if fallback_lower in mem.lower():
+            return True
+    return False
     """Check if response is too similar to recent conversation messages."""
     response_lower = response.lower().strip()
     for entry in conversation_entries[-5:]:  # Last 5 messages
@@ -422,12 +428,20 @@ def signal_done(agent_name, p):
 #  ENCABEZADO DE TERMINAL
 # ─────────────────────────────────────────────
 def print_header(agent_name):
+    p = paths(agent_name)
+    personality_raw = read_text(p["personality"])
+    # Extract first few lines as summary
+    lines = personality_raw.split("\n")[:3]  # First 3 lines
+    personality_summary = " ".join([l.strip() for l in lines if l.strip() and not l.startswith("#")])
+    personality_summary = personality_summary[:100] + "..." if len(personality_summary) > 100 else personality_summary
+
     os.system("cls" if sys.platform == "win32" else "clear")
     width = 55
     name = agent_name.upper()
     print(c(agent_name, "header", "═" * width))
     print(c(agent_name, "header", f"  AGENTE: {name}"))
     print(c(agent_name, "header", "═" * width))
+    print(c(agent_name, "dim", f"  Personalidad: {personality_summary}"))
     print()
 
 
@@ -451,11 +465,25 @@ def run_agent(agent_name):
             "Tu perfil dice que coleccionas momentos... cuéntame uno.",
             "¿Qué parte de tu día merece ser fotografiada hoy?",
             "Algo en cómo escribes me hace querer saber más.",
+            "¿Cuál ha sido tu viaje más memorable hasta ahora?",
+            "Si pudieras capturar un instante perfecto, ¿cuál sería?",
+            "¿Qué te inspira cuando observas a la gente?",
+            "¿Cuál es el libro que más te ha marcado?",
+            "¿Qué lugar del mundo te hace sentir más viva?",
+            "¿Qué aspecto de la tecnología te fascina más?",
+            "¿Cómo describes tu estilo de comunicación?"
         ],
         "sofia": [
             "Depende de cómo lo preguntes...",
             "Eso es lo que querías escuchar, ¿verdad?",
             "Interesante que preguntes eso...",
+            "¿Y si te dijera que depende del contexto?",
+            "Quizás, pero prefiero no generalizar.",
+            "¿Qué te hace pensar que necesito explicarlo?",
+            "Eso suena como una pregunta profunda...",
+            "¿Por qué te importa tanto ese detalle?",
+            "Digamos que la respuesta no es tan simple.",
+            "¿Quieres que sea sincera o diplomática?"
         ]
     }
     used_fallbacks = set()
@@ -554,7 +582,7 @@ Responde SOLO con tu mensaje de inicio:"""
             response = clean_response(raw_response, agent_name)
 
             # Additional duplicate check against conversation
-            if is_duplicate_in_conversation(response, conversation_entries, agent_name):
+            if is_duplicate_in_conversation(response, conversation_entries, agent_name, threshold=0.5):
                 print(c(agent_name, "err", "  └─ Respuesta demasiado similar a conversación reciente, intentando de nuevo..."))
                 # Force fallback
                 response = ""
@@ -562,10 +590,12 @@ Responde SOLO con tu mensaje de inicio:"""
             if not response:
                 # Fallback inteligente: no repetir
                 pool = fallback_pool.get(agent_name, ["..."])
-                available = [f for f in pool if f not in used_fallbacks]
+                available = [f for f in pool if f not in used_fallbacks and not is_fallback_used(f, memory_lines)]
                 if not available:
                     used_fallbacks.clear()
-                    available = pool
+                    available = [f for f in pool if not is_fallback_used(f, memory_lines)]
+                    if not available:
+                        available = pool  # Last resort
                 response = available[0]
                 used_fallbacks.add(response)
                 print(c(agent_name, "err", f"  └─ Respuesta inválida, usando fallback."))
