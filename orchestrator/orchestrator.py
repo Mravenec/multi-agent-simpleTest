@@ -46,34 +46,23 @@ class MultiAgentOrchestrator:
         personality = self.load_agent_personality(agent_name)
         memory = self.load_agent_memory(agent_name)
         
-        # Extraer esencia comprimida para Qwen 0.5B
+        # Extraer esencia ultra-breve
         esencia = re.search(r'- \*\*Esencia\*\*: (.*)', personality)
         voz = re.search(r'- \*\*Voz\*\*: (.*)', personality)
         traits = f"{esencia.group(1) if esencia else ''} {voz.group(1) if voz else ''}".strip()
         
-        # Historial de chat
+        # Historial real
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
-        last_chat = "\n".join(chat_lines[-3:]) if chat_lines else "Sin mensajes previos."
+        last_chat = "\n".join(chat_lines[-3:]) if chat_lines else ""
         
-        # ESTRUCTURA DE MONÓLOGO INTERNO (Thought-Action-Speech)
-        ejemplo = f"""Ejemplo:
-{agent_name.capitalize()} (pensando): Me gusta su pregunta. Seré misteriosa.
-{agent_name.capitalize()} (hablando): Los mejores sitios no tienen nombre.
----"""
+        # ENCUADRE IMPLÍCITO (Autocomplete puro para 0.5B)
+        # Sin palabras de instrucción como "Analiza" o "Responde" para evitar modo asistente.
+        full_prompt = f"""[{agent_name.upper()}: {traits}]
+[MEMORIA: {memory.strip()}]
 
-        full_prompt = f"""[TU IDENTIDAD: {agent_name.upper()}]
-[TUS RASGOS: {traits}]
-[TU MEMORIA: {memory.strip()}]
-
-[CHAT ACTUAL]:
 {last_chat}
-
-{ejemplo}
-
-Instrucción: Analiza en (pensando) y responde en (hablando).
-
-{agent_name.capitalize()} (pensando):"""
+{agent_name.capitalize()}:"""
         
         return "", full_prompt
     
