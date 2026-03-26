@@ -146,17 +146,21 @@ class MultiAgentOrchestrator:
             response = "Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo. ¿Cuál fue el último sitio donde te perdiste?"
             state["start_time"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         else:
-            # Dialogue Jumpstart: Pre-fill for Sofia to avoid AI reflex
-            prefix = "Pues " if current_agent == "sofia" else ""
-            system_prompt, user_prompt = self.build_prompt(current_agent)
-            user_prompt += f" {prefix}"
+            # Reintentos con Prefijos Agresivos para 0.5B
+            prefixes = ["Pues ", "La verdad es que ", "A ver, "]
+            response = "Error: Sin respuesta."
             
-            response_raw = self.call_ollama(system_prompt, user_prompt, config["model"], config["temperature"])
-            if response_raw and not response_raw.startswith("Error:"):
-                response = prefix + self.clean_response(response_raw, current_agent)
-            else:
-                response = response_raw
-        
+            for prefix in prefixes:
+                system_prompt, user_prompt = self.build_prompt(current_agent)
+                user_prompt += f" {prefix}"
+                
+                response_raw = self.call_ollama(system_prompt, user_prompt, config["model"])
+                if response_raw and not response_raw.startswith("Error:"):
+                    clean = self.clean_response(response_raw, current_agent)
+                    if not clean.startswith("Error:"):
+                        response = prefix + clean
+                        break
+            
         if response and not response.startswith("Error:"):
             self.update_conversation(current_agent, response)
             self.update_memory(current_agent, response)
