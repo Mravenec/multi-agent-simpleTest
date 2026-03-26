@@ -49,10 +49,11 @@ class MultiAgentOrchestrator:
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         last_chat = "\n".join(chat_lines[-3:]) if chat_lines else ""
         
-        # PROMPT MINIMALISTA (Para Qwen 0.5B)
-        # Identidad en el system_prompt, Chat puro en el user_prompt.
-        system_prompt = f"Eres {agent_name.capitalize()}. Sé breve, natural y misteriosa. No hables de ser una IA."
-        user_prompt = f"{last_chat}\n{agent_name.capitalize()}:"
+        # PROMPT DE COMPLETADO RAW
+        # Sin system_prompt para que el modelo 0.5B sea puro autocompletado de chat.
+        system_prompt = ""
+        traits = "misteriosa y juguetona" if agent_name == "sofia" else "directo y seguro"
+        user_prompt = f"{agent_name.capitalize()} es {traits} en un chat.\n\n{last_chat}\n{agent_name.capitalize()}:"
         
         return system_prompt, user_prompt
     
@@ -69,11 +70,11 @@ class MultiAgentOrchestrator:
                 "prompt": user_prompt,
                 "stream": False,
                 "options": {
-                    "temperature": temperature,
+                    "temperature": 0.4, # Menor temperatura = menos asistencialismo
                     "top_p": 0.9,
-                    "top_k": 40,
-                    "num_predict": 150,
-                    "stop": ["\n\n", "---", "[CHAT ACTUAL]", "[TU IDENTIDAD]"]
+                    "top_k": 20,
+                    "num_predict": 100,
+                    "stop": ["\n", "\n\n", "Alex:", "Sofia:", "[", "Lo siento", "asistir"]
                 }
             }
             
