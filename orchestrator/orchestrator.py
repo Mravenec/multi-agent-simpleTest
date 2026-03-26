@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
 import json
 import os
 import subprocess
 import time
+import re
 from datetime import datetime
 
 class MultiAgentOrchestrator:
@@ -65,20 +65,30 @@ Chat:
     
     def call_ollama(self, prompt, model, temperature=0.7):
         try:
-            # Usar 'ollama run' con el prompt como argumento
-            # Para modelos pequeños, a veces es mejor un prompt de sistema explícito
-            cmd = ["ollama", "run", model, prompt]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120, encoding='utf-8')
+            # Usar la API HTTP de Ollama para evitar el overhead del CLI
+            payload = {
+                "model": model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "temperature": temperature,
+                    "num_predict": 100, # Limitar longitud para velocidad
+                    "stop": ["\n", "Alex:", "Sofia:", "ALEX:", "SOFIA:"]
+                }
+            }
+            
+            # Usar curl para no depender de librerías externas como 'requests'
+            import json
+            payload_json = json.dumps(payload).replace('"', '\\"')
+            cmd = f'curl -s -X POST http://localhost:11434/api/generate -d "{payload_json}"'
+            
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120, encoding='utf-8')
+            
             if result.returncode == 0:
-                response = result.stdout.strip()
-                # Limpieza de posibles alucinaciones de prefijos
-                if ":" in response[:15]:
-                    response = response.split(":", 1)[-1].strip()
-                return response
+                data = json.loads(result.stdout)
+                return data.get("response", "").strip()
             else:
                 return f"Error: {result.stderr}"
-        except subprocess.TimeoutExpired:
-            return "Error: Timeout al llamar al modelo"
         except Exception as e:
             return f"Error: {str(e)}"
     
