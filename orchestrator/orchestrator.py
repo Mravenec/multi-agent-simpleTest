@@ -47,27 +47,25 @@ class MultiAgentOrchestrator:
             return f.read()
     
     def build_prompt(self, agent_name):
-        identity = self.load_agent_personality(agent_name).split('\n')[1]
+        # Rasgos de personalidad puros (sin mencionar trabajos)
+        traits = "Directo, algo sarcástico, prefiere la acción" if agent_name == "alex" else "Divertida, misteriosa, no lo cuenta todo"
         conversation = self.load_conversation()
         
-        # Historial de chat real
+        # Historial de chat real (solo los últimos 2 para evitar que el tono "robot" se contagie)
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
+        last_msgs = "\n".join(chat_lines[-2:]) if len(chat_lines) > 2 else "\n".join(chat_lines)
         
-        if not chat_lines:
-            # Lógica para INICIO DINÁMICO con EJEMPLOS
-            system = f"Eres {agent_name.upper()}. Estás en Tinder. NO digas 'Hola'. Sé breve y natural."
-            user = f"""Ejemplos de buenos inicios:
-- He estado viendo tu perfil y me pareces interesante, ¿qué tal si me cuentas algo que no digan tus fotos?
-- Me ha gustado mucho tu energía, ¿siempre eres así de activa o hoy es un día especial?
-- Me suena a que eres de las que no paran quietas, ¿me equivoco?
-
-Escribe tu primer mensaje (diferente a los ejemplos):"""
-        else:
-            # Lógica para CONTINUACIÓN (Pure Completion)
-            last_msgs = "\n".join(chat_lines[-3:])
-            system = f"Eres {agent_name.upper()}. {identity}. Sé natural y breve. NO seas un asistente."
-            user = f"Chat:\n{last_msgs}\n{agent_name.upper()}:"
+        # Framing de "Guion de cita" para evitar el modo ASISTENTE
+        system = f"""ESCRIBE UN GUION DE CITA. 
+Eres {agent_name.upper()}. {traits}.
+REGLAS MANDATORIAS:
+- NUNCA saludes. NUNCA digas "Hola", "Buenos días" ni "¿Cómo estás?".
+- NUNCA digas "estoy aquí para ayudarte" o "en qué puedo asistir".
+- Ve al grano. Di algo corto, directo y con Actitud.
+- NO uses etiquetas como SOFIA: o ALEX: en tu respuesta."""
+        
+        user = f"Chat actual:\n{last_msgs}\nSiguiente frase de {agent_name.upper()}:"
         
         return system, user
     

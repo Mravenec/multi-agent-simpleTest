@@ -1,2 +1,2 @@
 # Memoria de Alex
-Inicio de cita.
+Inicio de la cita virtual.
