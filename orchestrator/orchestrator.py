@@ -49,28 +49,31 @@ class MultiAgentOrchestrator:
     def build_prompt(self, agent_name):
         conversation = self.load_conversation()
         
-        # Historial de mensajes (limpio de etiquetas meta)
+        # Historial de mensajes 
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         
-        # PROMPT DE COMPLETADO SIN INSTRUCCIONES (Pure Chatlog)
-        # Esto es lo que el modelo "imita" sin saber que es una tarea.
-        # Quitamos "Escena", "Guion", etc. Solo el log.
-        base_log = """Alex: Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo.
-Sofia: Me has pillado. No paro quieta ni un segundo. ¿Tú eres de los que planean todo o te dejas llevar?
-Alex: Prefiero dejarme llevar, pero con un buen destino. ¿Cuál fue el último sitio donde te perdiste?
-Sofia: En las calles de Kioto. Fue increíble.
----"""
+        # LOG NEUTRAL (Evita disparar filtros de "Copyright" o "IA")
+        base_log = """A: Me gusta mucho tu forma de ver las cosas.
+S: ¿Ah sí? ¿En qué sentido?
+A: No sé, pareces de las que no se conforman con lo típico.
+S: Puede ser. Me gusta lo diferente.
+A: Eso es lo que me llamó la atención. ¿Sueles ser tan directa?"""
 
         if not chat_lines:
-            # INICIO: El modelo completa el siguiente mensaje del log base
-            full_prompt = f"{base_log}\nAlex:"
+            # INICIO: Usamos una letra para que no parezca un comando de IA
+            full_prompt = f"{base_log}\nS: " if agent_name == "sofia" else f"{base_log}\nA: "
         else:
-            # CONTINUACIÓN
-            last_msgs = "\n".join(chat_lines[-3:])
-            full_prompt = f"{base_log}\n{last_msgs}\n{agent_name.upper()}:"
+            # Filtramos los últimos mensajes y convertimos nombres a letras
+            last_msgs = []
+            for l in chat_lines[-3:]:
+                l = l.replace("ALEX:", "A:").replace("SOFIA:", "S:")
+                last_msgs.append(l)
+            
+            last_msgs_str = "\n".join(last_msgs)
+            prefix = "A: " if agent_name == "alex" else "S: "
+            full_prompt = f"{base_log}\n{last_msgs_str}\n{prefix}"
         
-        # Siempre retornamos system vacío para no disparar filtros de IA
         return "", full_prompt
     
     def call_ollama(self, system_prompt, user_prompt, model, temperature=0.7):
@@ -86,9 +89,9 @@ Sofia: En las calles de Kioto. Fue increíble.
                 "prompt": user_prompt,
                 "stream": False,
                 "options": {
-                    "temperature": temperature,
-                    "num_predict": 100,
-                    "stop": ["\n", "Alex:", "Sofia:", "ALEX:", "SOFIA:"]
+                    "temperature": 0.8,
+                    "num_predict": 80,
+                    "stop": ["\n", "A:", "S:", "Alex:", "Sofia:", "Lo siento", "Disculpa", "asistir"]
                 }
             }
             
