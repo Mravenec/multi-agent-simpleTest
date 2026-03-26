@@ -46,9 +46,14 @@ class MultiAgentOrchestrator:
         # Simplificar: no cargar personalidades complejas que contaminan
         memory = self.load_agent_memory(agent_name)
         
-        # Historial simple
+        # Historial simple - ARREGLADO
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
-        chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
+        # Buscar líneas que contienen timestamps y nombres de agentes
+        chat_lines = []
+        for line in lines:
+            if ("ALEX:" in line or "SOFIA:" in line) and "[" in line:
+                chat_lines.append(line)
+        
         last_chat = "\n".join(chat_lines[-1:]) if chat_lines else ""
         
         # Contexto simple
@@ -216,8 +221,12 @@ REGLAS:
         config = self.load_agent_config(current_agent)
         
         conversation = self.load_conversation()
+        # Extraer mensajes correctamente - ARREGLADO
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
-        chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
+        chat_lines = []
+        for line in lines:
+            if ("ALEX:" in line or "SOFIA:" in line) and "[" in line:
+                chat_lines.append(line)
         
         print(f" CONTEXTO ACTUAL:")
         if chat_lines:
@@ -230,9 +239,23 @@ REGLAS:
         print(f"\n PROCESO DE PENSAMIENTO DE {current_agent.upper()}:")
         
         if not chat_lines and current_agent == "alex":
-            response = "Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo. Veo una foto tuya en una montaña con atardecer, ¿cuál fue el último sitio donde te perdiste?"
-            state["start_time"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-            print(f"   Alex: 'Iniciaré describiendo la foto que veo - montaña con atardecer'")
+            # Alex genera su propia apertura, no es predeterminada
+            system_prompt, user_prompt = self.build_prompt(current_agent)
+            user_prompt += " Veo tu perfil con fotos de viajes..."
+            
+            response_raw = self.call_ollama(system_prompt, user_prompt, config["model"])
+            if response_raw and not response_raw.startswith("Error:"):
+                clean = self.clean_response(response_raw, current_agent)
+                if not clean.startswith("Error:") and len(clean) > 5:
+                    response = clean
+                    state["start_time"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+                    print(f"   Alex: 'Generaré mi propia apertura basada en su perfil'")
+                else:
+                    response = "Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo. ¿Cuál fue el último sitio donde te perdiste?"
+                    print(f"   Alex: 'Usaré apertura fallback'")
+            else:
+                response = "Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo. ¿Cuál fue el último sitio donde te perdiste?"
+                print(f"   Alex: 'Usaré apertura predeterminada por error'")
         else:
             # Obtener último mensaje para contexto - ARREGLADO
             last_message = ""
