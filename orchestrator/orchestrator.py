@@ -61,9 +61,9 @@ class MultiAgentOrchestrator:
         
         # Personalidad ultra simple SIN metadatos
         if agent_name == "alex":
-            personality = "Soy Alex, un chico directo de 28 años. Me gusta la fotografía y los viajes. Soy seguro y un poco misterioso. Nunca saludo con hola."
+            personality = "Soy Alex, 28 años. Me gusta el diseño y la creatividad. Soy directo y seguro."
         else:
-            personality = "Soy Sofia, una chica misteriosa de 26 años. Soy diseñadora. Respondo con enigmas y no doy respuestas directas. Nunca saludo."
+            personality = "Soy Sofia, 26 años. Soy diseñadora. Soy misteriosa e inteligente."
         
         # Sistema simple
         system_prompt = f"""Eres {agent_name.capitalize()}. Hablas con {other_agent.capitalize()}.
@@ -239,23 +239,9 @@ REGLAS:
         print(f"\n PROCESO DE PENSAMIENTO DE {current_agent.upper()}:")
         
         if not chat_lines and current_agent == "alex":
-            # Alex genera su propia apertura sobre un tema interesante
-            system_prompt, user_prompt = self.build_prompt(current_agent)
-            user_prompt += " Veo tu perfil de diseñadora... me gusta tu estilo."
-            
-            response_raw = self.call_ollama(system_prompt, user_prompt, config["model"])
-            if response_raw and not response_raw.startswith("Error:"):
-                clean = self.clean_response(response_raw, current_agent)
-                if not clean.startswith("Error:") and len(clean) > 5:
-                    response = clean
-                    state["start_time"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-                    print(f"   Alex: 'Generaré apertura sobre su perfil de diseñadora'")
-                else:
-                    response = "Tu perfil de diseñadora me intriga. ¿Qué tipo de proyectos te apasionan más?"
-                    print(f"   Alex: 'Usaré apertura sobre diseño'")
-            else:
-                response = "Tu perfil de diseñadora me intriga. ¿Qué tipo de proyectos te apasionan más?"
-                print(f"   Alex: 'Usaré apertura predeterminada sobre diseño'")
+            response = "Hola Sofia, vi tu perfil de diseñadora. ¿Qué tipo de proyectos te apasionan más?"
+            state["start_time"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+            print(f"   Alex: 'Iniciaré conversación sobre diseño de forma simple'")
         else:
             # Obtener último mensaje para contexto - ARREGLADO DEFINITIVAMENTE
             last_message = ""
@@ -284,12 +270,12 @@ REGLAS:
             print(f"   📝 Analizando último mensaje: '{last_message}'")
             print(f"   🎯 Cargando personalidad simple...")
             
-            # Prefijos ultra simples - CAMBIADOS PARA NUEVO TEMA
+            # Prefijos simples y coherentes
             if current_agent == "alex":
-                prefixes = ["Me gusta...", "Tu estilo...", "¿Qué tipo de..."]
+                prefixes = ["Me interesa...", "Tu trabajo...", "¿Qué tipo de..."]
                 print(f"   🔍 Alex usa enfoque de diseño")
             else:  # sofia
-                prefixes = ["Depende...", "Quizás...", "¿Y tú qué crees?"]
+                prefixes = ["Depende...", "Quizás...", "Es interesante..."]
                 print(f"   🎭 Sofia usa enfoque misterioso")
             
             response = "Error: Sin respuesta."
