@@ -47,27 +47,29 @@ class MultiAgentOrchestrator:
             return f.read()
     
     def build_prompt(self, agent_name):
-        # Rasgos de personalidad puros (sin mencionar trabajos)
-        traits = "Directo, algo sarcástico, prefiere la acción" if agent_name == "alex" else "Divertida, misteriosa, no lo cuenta todo"
         conversation = self.load_conversation()
         
-        # Historial de chat real (solo los últimos 2 para evitar que el tono "robot" se contagie)
+        # Historial de chat real
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
-        last_msgs = "\n".join(chat_lines[-2:]) if len(chat_lines) > 2 else "\n".join(chat_lines)
         
-        # Framing de "Guion de cita" para evitar el modo ASISTENTE
-        system = f"""ESCRIBE UN GUION DE CITA. 
-Eres {agent_name.upper()}. {traits}.
-REGLAS MANDATORIAS:
-- NUNCA saludes. NUNCA digas "Hola", "Buenos días" ni "¿Cómo estás?".
-- NUNCA digas "estoy aquí para ayudarte" o "en qué puedo asistir".
-- Ve al grano. Di algo corto, directo y con Actitud.
-- NO uses etiquetas como SOFIA: o ALEX: en tu respuesta."""
+        # LOG DE EJEMPLO PARA MARCAR EL ESTILO (Few-shot)
+        # Esto es lo que el modelo "imitará" sin saber que es una orden.
+        example_log = """Alex: Me gusta tu estilo en las fotos.
+Sofia: ¿Solo el estilo? Pensé que mis viajes dirían más.
+Alex: Lo dicen, pero prefiero ir descubriéndolo poco a poco.
+---"""
         
-        user = f"Chat actual:\n{last_msgs}\nSiguiente frase de {agent_name.upper()}:"
+        if not chat_lines:
+            # INICIO: El modelo completa el primer mensaje tras el ejemplo
+            full_prompt = f"{example_log}\n{agent_name.upper()}:"
+        else:
+            # CONTINUACIÓN: El modelo sigue el hilo actual
+            last_msgs = "\n".join(chat_lines[-3:])
+            full_prompt = f"{example_log}\n{last_msgs}\n{agent_name.upper()}:"
         
-        return system, user
+        # Retornamos (system, user). System vacío para no disparar filtros.
+        return "", full_prompt
     
     def call_ollama(self, system_prompt, user_prompt, model, temperature=0.7):
         try:
