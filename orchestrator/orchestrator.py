@@ -59,15 +59,14 @@ class MultiAgentOrchestrator:
         # Contexto simple
         other_agent = "sofia" if agent_name == "alex" else "alex"
         
-        # Personalidad ultra simple SIN metadatos
-        if agent_name == "alex":
-            personality = "Soy Alex, 28 años. Me gusta el diseño y la creatividad. Soy directo y seguro."
-        else:
-            personality = "Soy Sofia, 26 años. Soy diseñadora. Soy misteriosa e inteligente."
+        # Personalidad completa desde archivo
+        personality = self.load_agent_personality(agent_name)
         
                 # Sistema ANALÍTICO con MEMORIA integrada y más contexto
         memory = self.load_agent_memory(agent_name)
-        memory_text = "\n".join(memory.split('\n')[-5:])  # Últimas 5 respuestas
+        # Extraer solo las respuestas reales, no timestamps
+        memory_lines = [line.strip() for line in memory.split('\n') if line.strip() and not line.startswith('[') and not line.startswith('#')]
+        memory_text = '\n'.join(memory_lines[-5:])  # Últimas 5 respuestas limpias
         
         # Más contexto de conversación
         recent_chat = "\n".join(chat_lines[-4:]) if chat_lines else ""
@@ -76,18 +75,18 @@ class MultiAgentOrchestrator:
 
 {personality}
 
-TU MEMORIA RECIENTE (NO REPITAS estas frases):
+TU MEMORIA RECIENTE (NO REPITAS estas frases exactamente):
 {memory_text}
 
-REGLAS OBLIGATORIAS:
-- Lee y ANALIZA el último mensaje que {other_agent.capitalize()} dijo
-- Responde DIRECTAMENTE a lo que dijo, no a algo genérico
-- Máximo 1 línea, pero completa y relevante
-- NUNCA digas tu nombre o te presentes
-- Evita frases que ya dijiste antes
-- Sé creativo y natural, como en una conversación real
-- Si habla de diseño/trabajo, responde sobre eso específicamente
-- Si pregunta algo, responde la pregunta"""
+INSTRUCCIONES ESPECÍFICAS:
+- Analiza TU personalidad arriba y responde en ese estilo exacto
+- Usa el tono, ritmo y temas favoritos descritos
+- Evita ABSOLUTAMENTE las cosas prohibidas
+- Sigue los ejemplos de tu voz como guía
+- Responde DIRECTAMENTE al último mensaje, no genéricamente
+- Máximo 1 línea completa y relevante
+- Sé creativo y natural como en una conversación real
+- Si el otro habla de algo específico, responde sobre eso específicamente"""
 
         # Few-shot con personalidad específica y más contexto
         if agent_name == "alex":
