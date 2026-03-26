@@ -154,13 +154,18 @@ class MultiAgentOrchestrator:
         
         if not chat_lines and current_agent == "alex":
             response = "Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo. ¿Cuál fue el último sitio donde te perdiste?"
-            # Set dynamic start time
             state["start_time"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         else:
+            # Dialogue Jumpstart: Pre-fill for Sofia to avoid AI reflex
+            prefix = "Pues " if current_agent == "sofia" else ""
             system_prompt, user_prompt = self.build_prompt(current_agent)
-            response = self.call_ollama(system_prompt, user_prompt, config["model"], config["temperature"])
-            if response and not response.startswith("Error:"):
-                response = self.clean_response(response, current_agent)
+            user_prompt += f" {prefix}"
+            
+            response_raw = self.call_ollama(system_prompt, user_prompt, config["model"], config["temperature"])
+            if response_raw and not response_raw.startswith("Error:"):
+                response = prefix + self.clean_response(response_raw, current_agent)
+            else:
+                response = response_raw
         
         if response and not response.startswith("Error:"):
             self.update_conversation(current_agent, response)
