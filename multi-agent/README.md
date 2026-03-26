@@ -79,11 +79,11 @@ ORQUESTADOR (terminal central)
 
 - Python 3.7+
 - Ollama corriendo en `localhost:11434`
-- Modelo: `qwen2.5:0.5b` (o el que configures en `config.json`)
+- Modelo: `qwen2.5:1.5b` (o el que configures en `config.json`)
 
 ```bash
 # Instalar Ollama y bajar el modelo
-ollama pull qwen2.5:0.5b
+ollama pull qwen2.5:1.5b
 ```
 
 ---
