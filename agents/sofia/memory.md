@@ -1,2 +1,2 @@
 # Memoria de Sofia
-Inicio de la cita virtual.
+Inicio de la cita.
