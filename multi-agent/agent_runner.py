@@ -91,6 +91,24 @@ def is_similar_to_memory(response, memory_list):
         if mem_lower in response_lower and len(mem) > 10:  # Evitar falsos positivos con palabras cortas
             return True
     return False
+
+def is_duplicate_in_conversation(response, conversation_entries, threshold=0.7):
+    """Check if response is too similar to recent conversation messages."""
+    response_lower = response.lower().strip()
+    for entry in conversation_entries[-5:]:  # Last 5 messages
+        if entry["agent"] != interlocutor:  # Skip own messages
+            continue
+        msg_lower = entry["message"].lower().strip()
+        # Simple similarity: check if 70% of words overlap
+        words_resp = set(response_lower.split())
+        words_msg = set(msg_lower.split())
+        if words_resp and words_msg:
+            intersection = words_resp & words_msg
+            union = words_resp | words_msg
+            similarity = len(intersection) / len(union)
+            if similarity > threshold:
+                return True
+    return False
 def read_json(path):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -222,6 +240,13 @@ FORBIDDEN_PATTERNS = [
     "como asistente", "modelo de lenguaje", "soy una ia", "soy un ia",
     "inteligencia artificial", "qwen", "assist you", "eres muy guapa",
     "¿a qué te dedicas", "que tal", "¿qué tal",
+    # New: narration patterns
+    "confieso", "digo", "susurro", "pienso", "siento", "guiñándome", "sonriendo", "riendo",
+    "me guiño", "me sonrío", "me río", "me río", "me río", "me río", # variations
+    # Pronouns breaking immersion
+    "yo ", "me ", "mi ", "mí ", # only if not natural
+    # Repetition markers
+    "...", "uhm", "ehm",
 ]
 
 def clean_response(raw, agent_name):
@@ -308,54 +333,47 @@ IDENTITY:
 - NEVER speak as the other agent.
 - NEVER narrate actions (no "I said", "she smiled", etc).
 
-CONTEXT USAGE:
-- The ONLY message you must respond to is:
-  {last_message}
-
-- Conversation history is only for context, NOT for repetition.
+RESPONSE REQUIREMENTS:
+- Your response MUST directly address the last message from {interlocutor}.
+- If the last message is a question, ANSWER IT FIRST.
+- Add new information or ask a related question to continue the conversation.
+- Keep responses natural and conversational.
 
 CRITICAL BEHAVIOR RULES:
-1. NEVER repeat sentences or phrases from the conversation.
+1. NEVER repeat sentences or phrases from the conversation history.
 2. NEVER copy or paraphrase the other agent's message.
-3. ALWAYS add new information.
-4. ALWAYS respond directly to the last question if there is one.
-5. If there is a question → answer it FIRST.
-6. THEN expand naturally.
+3. ALWAYS add new value to the conversation.
+4. NEVER jump to unrelated topics without transition.
+5. Stay in character as defined in your personality.
 
 MEMORY RULES:
 - DO NOT invent shared past experiences.
 - DO NOT assume events happened unless explicitly stated.
-- DO NOT create fake memories like "when we were in Rome" unless confirmed.
+- DO NOT create fake memories.
 
 LANGUAGE RULES:
 - Use natural, fluent Spanish.
 - Avoid strange metaphors or nonsensical phrases.
 - Avoid poetic overgeneration.
-
-STYLE:
-- Conversational
-- Natural
-- Slightly expressive but NOT exaggerated
-- No roleplay narration
+- No roleplay narration.
 
 FORBIDDEN:
 - Repeating the same prompt
-- Echoing
+- Echoing previous messages
 - Acting as narrator
 - Switching roles
 - Copying text blocks
+- Using phrases like "confieso", "digo", "susurro", "pienso", "siento"
+- Self-referential narration like "guiñándome el ojo"
 
 OUTPUT FORMAT:
 - Plain text only
-- One message
+- One coherent message
 - No quotes unless necessary
 - No markdown
 
 GOAL:
-Maintain a coherent, realistic conversation where each reply:
-- Responds correctly
-- Adds new value
-- Feels human and consistent
+Maintain a coherent, realistic conversation where each reply advances the dialogue naturally.
 
 {personality}
 
@@ -534,6 +552,12 @@ Responde SOLO con tu mensaje de inicio:"""
                     raw_response = ""  # Forzar fallback
 
             response = clean_response(raw_response, agent_name)
+
+            # Additional duplicate check against conversation
+            if is_duplicate_in_conversation(response, conversation_entries):
+                print(c(agent_name, "err", "  └─ Respuesta demasiado similar a conversación reciente, intentando de nuevo..."))
+                # Force fallback
+                response = ""
 
             if not response:
                 # Fallback inteligente: no repetir
