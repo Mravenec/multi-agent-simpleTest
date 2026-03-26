@@ -65,30 +65,39 @@ class MultiAgentOrchestrator:
         else:
             personality = "Soy Sofia, 26 años. Soy diseñadora. Soy misteriosa e inteligente."
         
-        # Sistema simple con MEMORIA integrada
+                # Sistema ANALÍTICO con MEMORIA integrada y más contexto
         memory = self.load_agent_memory(agent_name)
-        memory_text = "\n".join(memory.split('\n')[-3:])  # Últimas 3 respuestas
+        memory_text = "\n".join(memory.split('\n')[-5:])  # Últimas 5 respuestas
         
-        system_prompt = f"""Eres {agent_name.capitalize()}. Hablas con {other_agent.capitalize()}.
+        # Más contexto de conversación
+        recent_chat = "\n".join(chat_lines[-4:]) if chat_lines else ""
+        
+        system_prompt = f"""Eres {agent_name.capitalize()}. Hablas con {other_agent.capitalize()} en una conversación de ligue.
 
 {personality}
 
-TU MEMORIA RECIENTE (no repitas estas frases):
+TU MEMORIA RECIENTE (NO REPITAS estas frases):
 {memory_text}
 
-REGLAS:
-- Responde directamente al último mensaje
-- Máximo 1 línea
-- NUNCA digas tu nombre
+REGLAS OBLIGATORIAS:
+- Lee y ANALIZA el último mensaje que {other_agent.capitalize()} dijo
+- Responde DIRECTAMENTE a lo que dijo, no a algo genérico
+- Máximo 1 línea, pero completa y relevante
+- NUNCA digas tu nombre o te presentes
 - Evita frases que ya dijiste antes
-- NUNCA saludes"""
-        
-        # Few-shot con personalidad específica
+- Sé creativo y natural, como en una conversación real
+- Si habla de diseño/trabajo, responde sobre eso específicamente
+- Si pregunta algo, responde la pregunta"""
+
+        # Few-shot con personalidad específica y más contexto
         if agent_name == "alex":
-            chat_format = "Alex: Esa foto tiene historia...\nSofia: Depende del día...\n\n"
+            chat_format = f"Alex: Esa foto tiene historia...\nSofia: Depende del día...\nAlex: Me intrigas con esa respuesta.\n\n"
         else:
-            chat_format = "Alex: Me intrigas...\nSofia: ¿Y tú qué crees?\n\n"
-        user_prompt = f"{chat_format}{last_chat}\n{agent_name.capitalize()}:"
+            chat_format = f"Sofia: Esa pregunta dice más de ti que de mí...\nAlex: ¿Por qué lo dices?\nSofia: Porque revela tus intereses.\n\n"
+        
+        user_prompt = f"{chat_format}CONVERSACIÓN RECIENTE:\n{recent_chat}\n\nÚLTIMO MENSAJE DE {other_agent.upper()}: {last_message}\n\n{agent_name.capitalize()}:"
+        
+        return system_prompt, user_prompt
         
         return system_prompt, user_prompt
     
@@ -228,12 +237,21 @@ REGLAS:
         config = self.load_agent_config(current_agent)
         
         conversation = self.load_conversation()
-        # Extraer mensajes correctamente - ARREGLADO
+        # Extraer mensajes correctamente - PARSING COMPLETO
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = []
-        for line in lines:
+        i = 0
+        while i < len(lines):
+            line = lines[i]
             if ("ALEX:" in line or "SOFIA:" in line) and "[" in line:
-                chat_lines.append(line)
+                # Esta línea tiene el timestamp y agente
+                message_lines = [line]
+                # Siguiente línea puede tener el mensaje
+                if i + 1 < len(lines) and not lines[i + 1].startswith("["):
+                    message_lines.append(lines[i + 1])
+                    i += 1  # Saltar la siguiente línea ya que la procesamos
+                chat_lines.append('\n'.join(message_lines))
+            i += 1
         
         print(f" CONTEXTO ACTUAL:")
         if chat_lines:
@@ -250,106 +268,78 @@ REGLAS:
             state["start_time"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
             print(f"   Alex: 'Iniciaré conversación sobre diseño de forma simple'")
         else:
-                        # Obtener último mensaje para contexto - PARSING ROBUSTO
+            # Obtener último mensaje para contexto - EXTRACCIÓN COMPLETA
             last_message = ""
             if chat_lines:
                 last_line = chat_lines[-1]
                 print(f"   🔍 Línea completa: '{last_line}'")
-                # Formato: [timestamp] AGENT: mensaje
-                # Encontrar la posición del último ":" después del agente
-                if "] " in last_line:
-                    # Separar timestamp del resto
-                    after_timestamp = last_line.split("] ", 1)[1]  # Después del timestamp
-                    if ": " in after_timestamp:
-                        agent_part, message_part = after_timestamp.split(": ", 1)
-                        last_message = message_part.strip()
-                        print(f"   ✅ Extraído correctamente: '{last_message}'")
+                
+                # Nuevo formato: [timestamp] AGENT:\nmensaje
+                lines_in_entry = last_line.split('\n')
+                if len(lines_in_entry) >= 2:
+                    # Primera línea: [timestamp] AGENT:
+                    # Segunda línea: mensaje
+                    message_part = lines_in_entry[1].strip()
+                    last_message = message_part
+                    print(f"   ✅ Extraído correctamente: '{last_message}'")
+                elif ": " in last_line:
+                    # Fallback: mensaje en la misma línea
+                    parts = last_line.split(": ", 1)
+                    if len(parts) == 2:
+                        last_message = parts[1].strip()
+                        print(f"   ✅ Extraído (fallback): '{last_message}'")
                     else:
-                        print(f"   ❌ No hay ': ' en el mensaje")
+                        print(f"   ❌ Formato inesperado en línea")
                 else:
-                    print(f"   ❌ Formato de timestamp incorrecto")
+                    print(f"   ❌ No se pudo extraer mensaje")
             else:
                 print(f"   ⚠️ No hay mensajes previos")
             
             print(f"   📝 Analizando último mensaje: '{last_message}'")
             print(f"   🎯 Cargando personalidad y memoria...")
             
-            # Prefijos variados y contextuales
-            if current_agent == "alex":
-                if "trabajo" in last_message.lower() or "diseño" in last_message.lower():
-                    prefixes = ["Cuéntame más...", "¿Qué proyectos...", "Me fascina..."]
-                    print(f"   🔍 Alex responde sobre diseño")
-                elif "interesa" in last_message.lower() or "gusta" in last_message.lower():
-                    prefixes = ["Me encantaría...", "¿Y si hablamos...", "Podríamos..."]
-                    print(f"   🔍 Alex muestra interés activo")
+            # Sistema LIBRE - sin prefijos determinados
+            system_prompt, user_prompt = self.build_prompt(current_agent)
+            
+            print(f"   🤖 Generando respuesta libre...")
+            response_raw = self.call_ollama(system_prompt, user_prompt, config["model"])
+            
+            if response_raw and not response_raw.startswith("Error:"):
+                clean = self.clean_response(response_raw, current_agent)
+                if not clean.startswith("Error:") and len(clean) > 5:
+                    response = clean
+                    print(f"   ✅ Respuesta generada libremente")
                 else:
-                    prefixes = ["¿Qué tal si...", "Me gustaría...", "Cuéntame de..."]
-                    print(f"   🔍 Alex usa enfoque general")
-            else:  # sofia
-                if "trabajo" in last_message.lower() or "diseño" in last_message.lower():
-                    prefixes = ["Depende del...", "Quizás algún...", "Es un arte..."]
-                    print(f"   🎭 Sofia responde sobre diseño")
-                elif "interesa" in last_message.lower() or "gusta" in last_message.lower():
-                    prefixes = ["Es curioso...", "Tal vez...", "Depende..."]
-                    print(f"   🎭 Sofia responde a interés")
-                else:
-                    prefixes = ["A veces...", "Quizás...", "Es complicado..."]
-                    print(f"   🎭 Sofia usa enfoque misterioso")
-            
-            response = "Error: Sin respuesta."
-            
-            print(f"   Intentando generar respuesta con {len(prefixes)} prefijos...")
-            
-            for i, prefix in enumerate(prefixes):
-                print(f"   Intento {i+1}: Usando prefijo '{prefix}'")
-                system_prompt, user_prompt = self.build_prompt(current_agent)
-                user_prompt += f" {prefix}"
-                
-                response_raw = self.call_ollama(system_prompt, user_prompt, config["model"])
-                print(f"   Ollama response: '{response_raw[:100]}...'")
-                
-                if response_raw and not response_raw.startswith("Error:"):
-                    clean = self.clean_response(response_raw, current_agent)
-                    print(f"   Limpieza: '{clean}'")
+                    # Fallback simple sin prefijos
+                    memory = self.load_agent_memory(current_agent)
+                    memory_lines = [l.strip() for l in memory.split('\n') if l.strip() and not l.startswith('#')]
                     
-                    if not clean.startswith("Error:") and len(clean) > 5:
-                        response = prefix + clean
-                        print(f"   Respuesta válida generada")
-                        break
-                else:
-                    print(f"   Falló intento {i+1}")
-            
-            if response.startswith("Error:"):
-                print(f"   Todos los intentos fallaron, usando fallback...")
-                if current_agent == "sofia":
-                    if "viajes" in last_message.lower() or "perdiste" in last_message.lower():
-                        fallback_responses = [
-                            "Depende del momento... ¿Y tú qué crees que encontré?",
-                            "Esa pregunta dice más de ti que de mí...",
-                            "Quizás algún día te lo cuente..."
+                    fallback_options = []
+                    if current_agent == "alex":
+                        fallback_options = [
+                            "Me gusta lo que dices sobre diseño.",
+                            "¿Qué te inspira en tus proyectos?",
+                            "Háblame más de tu trabajo creativo."
                         ]
                     else:
-                        fallback_responses = [
-                            "Esa pregunta dice más de ti que de mí...",
-                            "Depende del día y la compañía...",
-                            "¿Y tú qué crees que debería responder?"
+                        fallback_options = [
+                            "Es interesante tu perspectiva.",
+                            "Depende del contexto...",
+                            "¿Qué más quieres saber?"
                         ]
-                else:  # alex
-                    fallback_responses = [
-                        "Me intriga tu respuesta...",
-                        "No eres como las demás...",
-                        "Esa foto tiene historia...",
-                        "Hay algo en tu forma de hablar..."
-                    ]
-                
-                for fallback in fallback_responses:
-                    if fallback not in self.load_agent_memory(current_agent):
-                        response = fallback
-                        print(f"   Fallback seleccionado: '{response}'")
-                        break
-                else:
-                    response = fallback_responses[0]  # Último recurso
-                    print(f"   Último recurso fallback: '{response}'")
+                    
+                    # Elegir fallback que no esté en memoria reciente
+                    for fallback in fallback_options:
+                        if fallback not in '\n'.join(memory_lines[-3:]):
+                            response = fallback
+                            print(f"   🔄 Fallback único: '{response}'")
+                            break
+                    else:
+                        response = fallback_options[0]
+                        print(f"   ⚠️ Último recurso: '{response}'")
+            else:
+                response = "Interesante conversación..."
+                print(f"   🚨 Error en Ollama, respuesta básica")
         
         if response and not response.startswith("Error:"):
             print(f"\n RESPUESTA FINAL DE {current_agent.upper()}:")
