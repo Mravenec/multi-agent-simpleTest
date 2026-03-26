@@ -230,21 +230,21 @@ REGLAS:
         print(f"\n PROCESO DE PENSAMIENTO DE {current_agent.upper()}:")
         
         if not chat_lines and current_agent == "alex":
-            response = "Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo. ¿Cuál fue el último sitio donde te perdiste?"
+            response = "Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo. Veo una foto tuya en una montaña con atardecer, ¿cuál fue el último sitio donde te perdiste?"
             state["start_time"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-            print(f"   Alex: 'Iniciaré con mi línea de apertura sobre viajes y fotografía'")
+            print(f"   Alex: 'Iniciaré describiendo la foto que veo - montaña con atardecer'")
         else:
-            # Obtener último mensaje para contexto - MEJORADO
+            # Obtener último mensaje para contexto - ARREGLADO
             last_message = ""
             if chat_lines:
                 last_line = chat_lines[-1]
+                print(f"   🔍 Línea completa: '{last_line}'")
                 if ":" in last_line:
-                    # Extraer SOLO el contenido después del timestamp y nombre
-                    parts = last_line.split(":", 2)  # Separar timestamp, nombre, mensaje
-                    if len(parts) >= 3:
-                        last_message = parts[2].strip()
-                    elif len(parts) == 2:
-                        last_message = parts[1].strip()
+                    # Buscar el último ":" que separa el nombre del mensaje
+                    last_colon = last_line.rfind(":")
+                    if last_colon != -1:
+                        # Extraer todo después del último ":"
+                        last_message = last_line[last_colon + 1:].strip()
             
             print(f"   📝 Analizando último mensaje: '{last_message}'")
             print(f"   🎯 Cargando personalidad simple...")
