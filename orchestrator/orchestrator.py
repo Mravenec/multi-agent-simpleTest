@@ -41,22 +41,13 @@ class MultiAgentOrchestrator:
         with open(conv_path, "r", encoding='utf-8') as f:
             return f.read()
     
-    def build_prompt(self, agent_name):
-        conversation = self.load_conversation()
-        personality = self.load_agent_personality(agent_name)
-        memory = self.load_agent_memory(agent_name)
-        
-        # Extraer esencia comprimida para Qwen 0.5B
-        esencia = re.search(r'- \*\*Esencia\*\*: (.*)', personality)
-        voz = re.search(r'- \*\*Voz\*\*: (.*)', personality)
-        traits = f"{esencia.group(1) if esencia else ''} {voz.group(1) if voz else ''}".strip()
-        
-        # Historial de chat
-        lines = [l.strip() for l in conversation.split('\n') if l.strip()]
-        chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
-        last_chat = "\n".join(chat_lines[-3:]) if chat_lines else "Sin mensajes previos."
-        
         # ESTRUCTURA DE MONÓLOGO INTERNO (Thought-Action-Speech)
+        # Ejemplo mínimo para guiar al modelo 0.5B
+        ejemplo = f"""Ejemplo:
+{agent_name.capitalize()} (pensando): Me gusta su pregunta. Seré misteriosa.
+{agent_name.capitalize()} (hablando): Los mejores sitios no tienen nombre.
+---"""
+
         full_prompt = f"""[TU IDENTIDAD: {agent_name.upper()}]
 [TUS RASGOS: {traits}]
 [TU MEMORIA: {memory.strip()}]
@@ -64,8 +55,9 @@ class MultiAgentOrchestrator:
 [CHAT ACTUAL]:
 {last_chat}
 
----
-Instrucción: Analiza la situación brevemente en (pensando) y luego responde naturalmente en (hablando). No uses lenguaje de IA.
+{ejemplo}
+
+Instrucción: Analiza en (pensando) y responde en (hablando).
 
 {agent_name.capitalize()} (pensando):"""
         
