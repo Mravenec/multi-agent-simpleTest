@@ -53,26 +53,22 @@ class MultiAgentOrchestrator:
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         
-        # LOG NEUTRAL (Evita disparar filtros de "Copyright" o "IA")
-        base_log = """A: Me gusta mucho tu forma de ver las cosas.
-S: ¿Ah sí? ¿En qué sentido?
-A: No sé, pareces de las que no se conforman con lo típico.
-S: Puede ser. Me gusta lo diferente.
-A: Eso es lo que me llamó la atención. ¿Sueles ser tan directa?"""
+        # LOG DE REFERENCIA (Estilo)
+        base_log = """Alex: Me gusta tu estilo.
+Sofia: ¿Solo el estilo?
+Alex: No, también esa forma de lanzarte a la aventura.
+Sofia: Jeje, no paro. ¿Tú eres de los tranquilos?"""
 
         if not chat_lines:
-            # INICIO: Usamos una letra para que no parezca un comando de IA
-            full_prompt = f"{base_log}\nS: " if agent_name == "sofia" else f"{base_log}\nA: "
+            # INICIO: Forzamos el hook del usuario para coherencia
+            full_prompt = f"{base_log}\nAlex: Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo. ¿Cuál fue el último sitio donde te perdiste?\nSofia:"
+            if agent_name == "alex":
+                # Si es Alex, le damos el log y dejamos que él inicie con su hook
+                full_prompt = f"{base_log}\nAlex: Tienes una mirada"
         else:
-            # Filtramos los últimos mensajes y convertimos nombres a letras
-            last_msgs = []
-            for l in chat_lines[-3:]:
-                l = l.replace("ALEX:", "A:").replace("SOFIA:", "S:")
-                last_msgs.append(l)
-            
-            last_msgs_str = "\n".join(last_msgs)
-            prefix = "A: " if agent_name == "alex" else "S: "
-            full_prompt = f"{base_log}\n{last_msgs_str}\n{prefix}"
+            # CONTINUACIÓN
+            last_msgs = "\n".join(chat_lines[-3:])
+            full_prompt = f"{base_log}\n{last_msgs}\n{agent_name.upper()}:"
         
         return "", full_prompt
     
