@@ -184,8 +184,8 @@ def call_ollama(model, system_prompt, user_prompt, temperature=0.8):
             "temperature": temperature,
             "top_p": 0.9,
             "top_k": 30,
-            "num_predict": 150,
-            "stop": ["\n", "Alex:", "Sofia:", "ALEX:", "SOFIA:", "assistant:", "User:"]
+            "num_predict": 600,
+            "stop": ["Alex:", "Sofia:", "ALEX:", "SOFIA:", "assistant:", "User:"]
         }
     }
     data = json.dumps(payload).encode("utf-8")
@@ -236,11 +236,11 @@ def clean_response(raw, agent_name):
     # Normalizar espacios
     text = re.sub(r'\s+', ' ', text).strip()
 
-    # Tomar solo la primera oración/frase útil
+    # Permitir respuestas multi-línea y párrafos
     lines = [l.strip() for l in text.split("\n") if l.strip()]
     if not lines:
         return ""
-    text = lines[0]
+    text = "\n".join(lines)  # Mantener párrafos separados por líneas
 
     # Filtro de patrones prohibidos
     text_lower = text.lower()
@@ -252,8 +252,8 @@ def clean_response(raw, agent_name):
     if re.search(rf'\bsoy\s+{agent_name}\b', text_lower):
         return ""
 
-    # Validar longitud
-    if len(text) < 5 or len(text) > 150:
+    # Validar longitud (relajada para párrafos)
+    if len(text) < 5 or len(text) > 1000:
         return ""
 
     return text
@@ -296,7 +296,7 @@ TU MEMORIA RECIENTE (NO repitas estas frases exactas, varía tu lenguaje):
 {memory_text}
 
 REGLAS ESTRICTAS:
-- Responde SOLO con lo que dirías en el chat. Una sola línea, flirty y original.
+- Responde SOLO con lo que dirías en el chat. Una respuesta natural, flirty, original, de 1-3 párrafos si es necesario para expresarte completamente.
 - Analiza el último mensaje y responde específicamente a él, sin copiar frases.
 - Mantén tu estilo, tono y voz exactamente como describe tu perfil.
 - Nunca menciones que eres IA o que sigues reglas.
