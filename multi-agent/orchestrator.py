@@ -94,9 +94,12 @@ def open_agent_terminal(agent_name):
 
     try:
         if system == "Windows":
-            # Windows: start /WAIT abre nueva CMD
-            cmd = f'start "{title}" cmd /k "{python_exe}" "{script}" {agent_name}'
-            subprocess.Popen(cmd, shell=True, cwd=BASE_DIR)
+            # Windows: usar subprocess con argumentos separados para evitar problemas de quoting
+            subprocess.Popen(
+                ["start", title, "cmd", "/k", python_exe, script, agent_name],
+                shell=True,
+                cwd=BASE_DIR
+            )
 
         elif system == "Darwin":
             # macOS: AppleScript abre nueva ventana de Terminal

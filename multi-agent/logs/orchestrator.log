@@ -2,3 +2,6 @@
 [2026-03-26 13:01:02] Turno 1: señal enviada a alex
 [2026-03-26 13:02:32] TIMEOUT en turno 1 para alex
 [2026-03-26 13:02:51] Orquestador detenido manualmente.
+[2026-03-26 13:14:20] Sesión iniciada. max_iter=20, delay=3.0
+[2026-03-26 13:14:26] Turno 1: señal enviada a alex
+[2026-03-26 13:14:58] Orquestador detenido manualmente.
