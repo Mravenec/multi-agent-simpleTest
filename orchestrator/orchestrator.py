@@ -55,13 +55,18 @@ class MultiAgentOrchestrator:
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         
         if not chat_lines:
-            # Lógica para INICIO DINÁMICO
-            system = f"Eres {agent_name.upper()}. Estás iniciando un chat en Tinder con Sofia. Sé creativo, natural y corto. NO saludes con 'Hola'."
-            user = f"Escribe tu primer mensaje para romper el hielo:"
+            # Lógica para INICIO DINÁMICO con EJEMPLOS
+            system = f"Eres {agent_name.upper()}. Estás en Tinder. NO digas 'Hola'. Sé breve y natural."
+            user = f"""Ejemplos de buenos inicios:
+- He estado viendo tu perfil y me pareces interesante, ¿qué tal si me cuentas algo que no digan tus fotos?
+- Me ha gustado mucho tu energía, ¿siempre eres así de activa o hoy es un día especial?
+- Me suena a que eres de las que no paran quietas, ¿me equivoco?
+
+Escribe tu primer mensaje (diferente a los ejemplos):"""
         else:
             # Lógica para CONTINUACIÓN (Pure Completion)
             last_msgs = "\n".join(chat_lines[-3:])
-            system = f"Eres {agent_name.upper()}. {identity}. Sé natural y breve."
+            system = f"Eres {agent_name.upper()}. {identity}. Sé natural y breve. NO seas un asistente."
             user = f"Chat:\n{last_msgs}\n{agent_name.upper()}:"
         
         return system, user
