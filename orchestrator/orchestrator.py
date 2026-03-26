@@ -49,12 +49,10 @@ class MultiAgentOrchestrator:
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         last_chat = "\n".join(chat_lines[-3:]) if chat_lines else ""
         
-        # ANCLA DE ROL (Para evitar confusión de identidad en 0.5B)
-        # Definimos ambos roles para que el modelo sepa quién NO es.
-        roles = "Alex es un hombre directo. Sofia es una mujer misteriosa."
-        instruction = f"Solo escribe lo que dice {agent_name.capitalize()}."
-        
-        user_prompt = f"{roles}\n{instruction}\n\n{last_chat}\n{agent_name.capitalize()}:"
+        # PATTERN-MATCHING (Ejemplo mínimo de chat para 0.5B)
+        # Esto enseña al modelo el formato sin usar instrucciones abstractas.
+        chat_format = "Alex: Hola.\nSofia: Hola, ¿qué tal?\n\n"
+        user_prompt = f"{chat_format}{last_chat}\n{agent_name.capitalize()}:"
         
         return "", user_prompt
     
