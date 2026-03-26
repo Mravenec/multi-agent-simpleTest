@@ -43,14 +43,15 @@ class MultiAgentOrchestrator:
 
     def build_prompt(self, agent_name):
         conversation = self.load_conversation()
+        personality = self.load_agent_personality(agent_name)
         
         # Historial real
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         last_chat = "\n".join(chat_lines[-3:]) if chat_lines else ""
         
-        # ANCLA DE IDIOMA Y ROL (Strict Spanish + No Assistant)
-        system_prompt = f"Eres {agent_name.capitalize()}. Hablas ESPAÑOL natural. No eres un asistente. Eres una persona real."
+        # ANCLA DE IDIOMA Y ROL con personalidad completa
+        system_prompt = f"Eres {agent_name.capitalize()}. Hablas ESPAÑOL natural. No eres un asistente. Eres una persona real.\n\n{personality}\n\nREGLAS ESTRICTAS:\n- NUNCA saludes formalmente (hola, cómo estás)\n- Siempre responde directamente al último mensaje\n- Máximo 2 líneas por respuesta\n- Usa tu voz única según tu perfil"
         
         # Few-shot puramente en español
         chat_format = "Alex: ¿Qué tal?\nSofia: Pues bien, aquí andamos.\n\n"
