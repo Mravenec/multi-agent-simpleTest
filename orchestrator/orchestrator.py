@@ -51,17 +51,22 @@ class MultiAgentOrchestrator:
         conversation = self.load_conversation()
         interlocutor = self.switch_turn(agent_name)
         
-        # Últimos mensajes para contexto
+        # Filtro de historial
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         last_msgs = "\n".join(lines[-6:]) if len(lines) > 6 else "\n".join(lines)
 
-        # Prompt de patrón con ritmo natural y párrafos
-        prompt = f"""Alex: Hola, me encantó tu estilo en las fotos. Pareces alguien con mucha energía.
-Sofia: ¡Gracias! Intento que mi día a día sea dinámico. ¿Tú también eres de los que no pueden estar quietos?
-Alex: Totalmente. Soy ingeniero, así que mi mente siempre está dando vueltas a algo. Pero para relajarme, nada como una buena ruta de montaña o descubrir un bar escondido. ¿Qué es lo que más te hace desconectar a ti?
-Sofia: Me encanta perderme diseñando, pero si hablamos de salir, una terraza con buenas vistas y una charla interesante me ganan rápido. ¿Me estás invitando a uno de esos sitios escondidos?
+        # Prompt que incluye la identidad y habilidades del agente
+        # Mantenemos el formato de patrón (few-shot) para estabilidad
+        prompt = f"""HISTORIA DE TINDER (Ficción)
+{personality}
+
+EJEMPLO DE DINÁMICA:
+Alex: Me gusta tu estilo. Pareces alguien con mucha energía.
+Sofia: ¡Gracias! Intento que mi día sea dinámico. ¿Tú eres de los que no pueden estar quietos?
+Alex: Ingeniero, mente siempre activa. Para relajarme, montaña o un bar escondido. ¿Tú?
+Sofia: Diseñando me pierdo, pero una terraza con vistas me gana rápido. ¿Me invitas?
 ---
-Chat Actual (Mantén el tono natural y escribe un párrafo corto):
+Chat Actual (Usa tus habilidades y responde con naturalidad):
 {last_msgs}
 {agent_name.upper()}:"""
         

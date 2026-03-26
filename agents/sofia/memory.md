@@ -1,2 +1,2 @@
 # Memoria de Sofia
-Esperando inicio de la cita virtual.
+Inicio de la cita virtual con habilidades estratégicas.
