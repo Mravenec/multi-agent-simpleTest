@@ -45,13 +45,27 @@ class MultiAgentOrchestrator:
         conversation = self.load_conversation()
         personality = self.load_agent_personality(agent_name)
         
-        # Historial real
+        # Historial real mejorado
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
-        last_chat = "\n".join(chat_lines[-3:]) if chat_lines else ""
+        last_chat = "\n".join(chat_lines[-2:]) if chat_lines else ""
         
-        # ANCLA DE IDIOMA Y ROL con personalidad completa
-        system_prompt = f"Eres {agent_name.capitalize()}. Hablas ESPAÑOL natural. No eres un asistente. Eres una persona real.\n\n{personality}\n\nREGLAS ESTRICTAS:\n- NUNCA saludes (hola, cómo estás, buen día)\n- Siempre responde DIRECTAMENTE al último mensaje\n- Máximo 2 líneas por respuesta\n- Usa tu voz única según tu perfil\n- PIENSA antes de responder"
+        # Contexto claro de quién es quién
+        other_agent = "sofia" if agent_name == "alex" else "alex"
+        
+        # ANCLA DE IDIOMA Y ROL con identidad clara
+        system_prompt = f"""Eres {agent_name.capitalize()}. Estás hablando con {other_agent.capitalize()}.
+Hablas ESPAÑOL natural. No eres un asistente. Eres una persona real.
+
+{personality}
+
+REGLAS ESTRICTAS:
+- NUNCA saludes (hola, cómo estás, buen día)
+- NUNCA te refieras a ti mismo por tu nombre
+- Siempre responde DIRECTAMENTE al último mensaje de {other_agent.capitalize()}
+- Máximo 2 líneas por respuesta
+- Usa tu voz única según tu perfil
+- MANTÉN EL CONTEXSO de la conversación"""
         
         # Few-shot con personalidad específica
         if agent_name == "alex":
@@ -118,27 +132,35 @@ class MultiAgentOrchestrator:
         response = re.sub(r'\(pensando\):.*', '', response, flags=re.DOTALL)
         response = re.sub(r'\[\d{2}:\d{2}:\d{2}\]', '', response)
         
-        # Filtro de saludos y respuestas genéricas (más agresivo)
-        forbidden_patterns = [
-            "hola", "¿cómo estás", "cómo estas", "buen día", "buenos días",
-            "¿qué tal", "que tal", "¿qué hay", "que hay", "espero que estés",
-            "espero que estas", "¿cómo te va", "cómo te va"
+        # Filtro de errores de identidad (muy importante)
+        self_referencing_patterns = [
+            f"{agent_name.capitalize()}", f"soy {agent_name}", f"soy un",
+            "soy una", "como asistente", "modelo de lenguaje"
         ]
         
         response_lower = response.lower()
+        if any(pattern.lower() in response_lower for pattern in self_referencing_patterns):
+            return "Error: Identidad incorrecta."
+        
+        # Filtro de saludos y respuestas genéricas
+        forbidden_patterns = [
+            "hola", "¿cómo estás", "cómo estas", "buen día", "buenos días",
+            "¿qué tal", "que tal", "¿qué hay", "que hay", "espero que estés",
+            "espero que estas", "¿cómo te va", "cómo te va", "¿cómo te sientes"
+        ]
+        
         if any(pattern in response_lower for pattern in forbidden_patterns):
             return "Error: Saludo genérico."
         
         # Filtro de IA y Asistencialismo
         ai_boilerplate = [
-            "modelo de lenguaje", "inteligencia artificial", "qwen", "alibaba",
-            "assist you", "help you", "today", "lo siento", "puedo ayudar",
-            "soy un", "soy una", "como asistente"
+            "inteligencia artificial", "qwen", "alibaba",
+            "assist you", "help you", "today", "lo siento", "puedo ayudar"
         ]
         if any(phrase in response_lower for phrase in ai_boilerplate):
             return "Error: Respuesta contaminada."
 
-        # Validar que sea una respuesta real (mínimo 5 caracteres, máximo 100)
+        # Validar que sea una respuesta real
         lines = [l.strip() for l in response.split('\n') if l.strip()]
         if not lines:
             return "Error: Sin contenido."
@@ -169,11 +191,24 @@ class MultiAgentOrchestrator:
             response = "Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo. ¿Cuál fue el último sitio donde te perdiste?"
             state["start_time"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         else:
-            # Reintentos con Prefijos según personalidad
+            # Obtener último mensaje para contexto
+            last_message = ""
+            if chat_lines:
+                last_line = chat_lines[-1]
+                if ":" in last_line:
+                    last_message = last_line.split(":", 1)[1].strip()
+            
+            # Prefijos contextuales según personalidad
             if current_agent == "alex":
-                prefixes = ["Esa foto...", "Me intriga...", "No eres como...", "A ver, ", "Pues ", "La verdad "]
+                if "viajes" in last_message.lower() or "foto" in last_message.lower():
+                    prefixes = ["Esa foto...", "Me intriga ese lugar...", "No eres como...", "A ver, "]
+                else:
+                    prefixes = ["Me intriga...", "No eres como...", "A ver, ", "Pues ", "La verdad "]
             else:  # sofia
-                prefixes = ["Depende...", "¿Y tú qué crees?", "Esa pregunta...", "Bueno, ", "A ver, ", "Pues "]
+                if "viajes" in last_message.lower() or "foto" in last_message.lower():
+                    prefixes = ["Depende del viaje...", "¿Y tú qué crees?", "Esa pregunta...", "Bueno, "]
+                else:
+                    prefixes = ["Depende...", "¿Y tú qué crees?", "Esa pregunta...", "Bueno, ", "A ver, "]
             
             response = "Error: Sin respuesta."
             
