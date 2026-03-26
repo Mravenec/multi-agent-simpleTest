@@ -54,7 +54,7 @@ SIGNAL_PATH = os.path.join(BASE_DIR, "shared", "signal.json")
 STATE_PATH  = os.path.join(BASE_DIR, "shared", "state.json")
 CONV_PATH   = os.path.join(BASE_DIR, "shared", "conversation.txt")
 LOG_PATH    = os.path.join(BASE_DIR, "logs", "orchestrator.log")
-AGENT_SCRIPT= os.path.join(BASE_DIR, "agents", "{agent_name}", "agent_terminal.py")
+AGENT_SCRIPT= os.path.join(BASE_DIR, "agent_runner.py")
 
 # ─────────────────────────────────────────────
 #  UTILIDADES
