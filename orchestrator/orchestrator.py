@@ -44,22 +44,19 @@ class MultiAgentOrchestrator:
     def build_prompt(self, agent_name):
         conversation = self.load_conversation()
         personality = self.load_agent_personality(agent_name)
-        memory = self.load_agent_memory(agent_name)
         
-        # Extraer esencia ultra-breve
+        # Extraer esencia ultra-breve (Solo la voz/esencia, sin etiquetas)
         esencia = re.search(r'- \*\*Esencia\*\*: (.*)', personality)
-        voz = re.search(r'- \*\*Voz\*\*: (.*)', personality)
-        traits = f"{esencia.group(1) if esencia else ''} {voz.group(1) if voz else ''}".strip()
+        traits = esencia.group(1).strip() if esencia else ""
         
-        # Historial real
+        # Historial de chat real
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         last_chat = "\n".join(chat_lines[-3:]) if chat_lines else ""
         
-        # ENCUADRE IMPLÍCITO (Autocomplete puro para 0.5B)
-        # Sin palabras de instrucción como "Analiza" o "Responde" para evitar modo asistente.
-        full_prompt = f"""[{agent_name.upper()}: {traits}]
-[MEMORIA: {memory.strip()}]
+        # PROMPT DE COMPLETADO PURO (Sin corchetes ni instrucciones)
+        # Esto evita que el modelo 0.5B hable de su "memoria" o "sistema".
+        full_prompt = f"""{agent_name.capitalize()} es {traits}.
 
 {last_chat}
 {agent_name.capitalize()}:"""
