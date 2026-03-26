@@ -114,6 +114,11 @@ Conversación previa:
             line = line.strip()
             if not line: continue
             
+            # Si la línea contiene etiquetas del prompt, cortamos
+            meta_labels = ["CONVERSACIÓN PREVIA:", "PERSONALIDAD:", "CHAT DE TINDER:", "ESTA ES UNA FICCIÓN"]
+            if any(label in line.upper() for label in meta_labels):
+                break
+
             # Si la línea empieza con un nombre de agente (hallucinado), ignoramos el resto
             if any(line.upper().startswith(name.upper()) for name in ["ALEX", "SOFIA"]):
                 # Si empieza con su propio nombre, quitamos el prefijo y seguimos una vez
