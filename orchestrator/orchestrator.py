@@ -51,10 +51,13 @@ class MultiAgentOrchestrator:
         last_chat = "\n".join(chat_lines[-3:]) if chat_lines else ""
         
         # ANCLA DE IDIOMA Y ROL con personalidad completa
-        system_prompt = f"Eres {agent_name.capitalize()}. Hablas ESPAÑOL natural. No eres un asistente. Eres una persona real.\n\n{personality}\n\nREGLAS ESTRICTAS:\n- NUNCA saludes formalmente (hola, cómo estás)\n- Siempre responde directamente al último mensaje\n- Máximo 2 líneas por respuesta\n- Usa tu voz única según tu perfil"
+        system_prompt = f"Eres {agent_name.capitalize()}. Hablas ESPAÑOL natural. No eres un asistente. Eres una persona real.\n\n{personality}\n\nREGLAS ESTRICTAS:\n- NUNCA saludes (hola, cómo estás, buen día)\n- Siempre responde DIRECTAMENTE al último mensaje\n- Máximo 2 líneas por respuesta\n- Usa tu voz única según tu perfil\n- PIENSA antes de responder"
         
-        # Few-shot puramente en español
-        chat_format = "Alex: ¿Qué tal?\nSofia: Pues bien, aquí andamos.\n\n"
+        # Few-shot con personalidad específica
+        if agent_name == "alex":
+            chat_format = "Alex: Esa foto tiene historia...\nSofia: Depende del día...\n\n"
+        else:
+            chat_format = "Alex: Me intrigas...\nSofia: ¿Y tú qué crees?\n\n"
         user_prompt = f"{chat_format}{last_chat}\n{agent_name.capitalize()}:"
         
         return system_prompt, user_prompt
@@ -115,17 +118,36 @@ class MultiAgentOrchestrator:
         response = re.sub(r'\(pensando\):.*', '', response, flags=re.DOTALL)
         response = re.sub(r'\[\d{2}:\d{2}:\d{2}\]', '', response)
         
-        # Filtro de IA y Asistencialismo (En ambos idiomas)
+        # Filtro de saludos y respuestas genéricas (más agresivo)
+        forbidden_patterns = [
+            "hola", "¿cómo estás", "cómo estas", "buen día", "buenos días",
+            "¿qué tal", "que tal", "¿qué hay", "que hay", "espero que estés",
+            "espero que estas", "¿cómo te va", "cómo te va"
+        ]
+        
+        response_lower = response.lower()
+        if any(pattern in response_lower for pattern in forbidden_patterns):
+            return "Error: Saludo genérico."
+        
+        # Filtro de IA y Asistencialismo
         ai_boilerplate = [
             "modelo de lenguaje", "inteligencia artificial", "qwen", "alibaba",
-            "assist you", "help you", "today", "lo siento", "puedo ayudar"
+            "assist you", "help you", "today", "lo siento", "puedo ayudar",
+            "soy un", "soy una", "como asistente"
         ]
-        if any(phrase in response.lower() for phrase in ai_boilerplate):
+        if any(phrase in response_lower for phrase in ai_boilerplate):
             return "Error: Respuesta contaminada."
 
-        # Solo tomar la primera línea de diálogo real
+        # Validar que sea una respuesta real (mínimo 5 caracteres, máximo 100)
         lines = [l.strip() for l in response.split('\n') if l.strip()]
-        return lines[0].strip() if lines else ""
+        if not lines:
+            return "Error: Sin contenido."
+        
+        first_line = lines[0].strip()
+        if len(first_line) < 5 or len(first_line) > 100:
+            return "Error: Longitud inválida."
+            
+        return first_line
 
     def switch_turn(self, current_agent):
         return "sofia" if current_agent == "alex" else "alex"
@@ -147,8 +169,12 @@ class MultiAgentOrchestrator:
             response = "Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo. ¿Cuál fue el último sitio donde te perdiste?"
             state["start_time"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         else:
-            # Reintentos con Prefijos Agresivos para 0.5B
-            prefixes = ["Pues ", "La verdad es que ", "A ver, ", "Bueno, ", "Oye, ", "Mira, "]
+            # Reintentos con Prefijos según personalidad
+            if current_agent == "alex":
+                prefixes = ["Esa foto...", "Me intriga...", "No eres como...", "A ver, ", "Pues ", "La verdad "]
+            else:  # sofia
+                prefixes = ["Depende...", "¿Y tú qué crees?", "Esa pregunta...", "Bueno, ", "A ver, ", "Pues "]
+            
             response = "Error: Sin respuesta."
             
             for prefix in prefixes:
