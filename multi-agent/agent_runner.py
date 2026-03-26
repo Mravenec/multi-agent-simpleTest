@@ -176,7 +176,7 @@ def call_ollama(model, system_prompt, user_prompt, temperature=0.8):
             "temperature": temperature,
             "top_p": 0.9,
             "top_k": 30,
-            "num_predict": 80,
+            "num_predict": 150,
             "stop": ["\n", "Alex:", "Sofia:", "ALEX:", "SOFIA:", "assistant:", "User:"]
         }
     }
@@ -198,8 +198,7 @@ def call_ollama(model, system_prompt, user_prompt, temperature=0.8):
 FORBIDDEN_PATTERNS = [
     "hola", "¿cómo estás", "cómo estas", "buenos días", "buen día",
     "como asistente", "modelo de lenguaje", "soy una ia", "soy un ia",
-    "inteligencia artificial", "qwen", "assist you", "help you",
-    "lo siento mucho", "puedo ayudar", "today i", "eres muy guapa",
+    "inteligencia artificial", "qwen", "assist you", "eres muy guapa",
     "¿a qué te dedicas", "que tal", "¿qué tal",
 ]
 
@@ -267,6 +266,14 @@ def build_prompt(agent_name, config, p, conversation_entries, last_message):
     ]
     memory_text = "\n".join(memory_lines[-5:])
 
+    # Función para verificar si la respuesta es demasiado similar a memoria reciente
+    def is_similar_to_memory(response, memory):
+        response_lower = response.lower()
+        for mem in memory:
+            if mem.lower() in response_lower and len(mem) > 10:  # Evitar falsos positivos con palabras cortas
+                return True
+        return False
+
     # Historial reciente formateado
     history_text = ""
     for entry in conversation_entries[-4:]:
@@ -277,16 +284,17 @@ def build_prompt(agent_name, config, p, conversation_entries, last_message):
 
 {personality}
 
-TU MEMORIA RECIENTE (NO repitas estas frases exactas):
+TU MEMORIA RECIENTE (NO repitas estas frases exactas, varía tu lenguaje):
 {memory_text}
 
 REGLAS ESTRICTAS:
-- Responde SOLO con lo que dirías en el chat. Una sola línea.
-- Analiza el último mensaje y responde específicamente a él.
+- Responde SOLO con lo que dirías en el chat. Una sola línea, flirty y original.
+- Analiza el último mensaje y responde específicamente a él, sin copiar frases.
 - Mantén tu estilo, tono y voz exactamente como describe tu perfil.
 - Nunca menciones que eres IA o que sigues reglas.
 - Sé coqueto, inteligente, atrevido pero sutil.
-"""
+- Evita repetir frases recientes o similares; crea respuestas nuevas.
+- Si sientes que repites, piensa en una nueva forma de expresar la idea."""
 
     # Few-shot específico por agente
     if agent_name == "alex":
@@ -353,7 +361,7 @@ def run_agent(agent_name):
     config = read_json(p["config"])
     interlocutor = config["interlocutor"]
     model = config["model"]
-    temperature = config.get("temperature", 0.8)
+    temperature = config.get("temperature", 0.9)
 
     print_header(agent_name)
     print(c(agent_name, "dim", f"  Modelo: {model}"))
@@ -421,6 +429,16 @@ def run_agent(agent_name):
             print(c(agent_name, "think", "\n  [3/4] Generando respuesta con Ollama..."))
             raw_response = call_ollama(model, system_prompt, user_prompt, temperature)
             print(c(agent_name, "dim", f"  └─ Raw: \"{raw_response[:80]}...\"" if len(raw_response) > 80 else f"  └─ Raw: \"{raw_response}\""))
+
+            # Verificar similitud con memoria reciente
+            if is_similar_to_memory(raw_response, memory_lines[-5:]):
+                print(c(agent_name, "err", "  └─ Respuesta demasiado similar a memoria reciente, intentando de nuevo..."))
+                # Intentar una vez más con prompt ajustado
+                user_prompt_retry = user_prompt + "\nIMPORTANTE: Crea una respuesta completamente nueva, no uses frases similares a las anteriores."
+                raw_response = call_ollama(model, system_prompt, user_prompt_retry, temperature)
+                print(c(agent_name, "dim", f"  └─ Reintento: \"{raw_response[:80]}...\"" if len(raw_response) > 80 else f"  └─ Reintento: \"{raw_response}\""))
+                if is_similar_to_memory(raw_response, memory_lines[-5:]):
+                    raw_response = ""  # Forzar fallback
 
             response = clean_response(raw_response, agent_name)
 
