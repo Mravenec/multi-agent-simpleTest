@@ -54,7 +54,7 @@ SIGNAL_PATH = os.path.join(BASE_DIR, "shared", "signal.json")
 STATE_PATH  = os.path.join(BASE_DIR, "shared", "state.json")
 CONV_PATH   = os.path.join(BASE_DIR, "shared", "conversation.txt")
 LOG_PATH    = os.path.join(BASE_DIR, "logs", "orchestrator.log")
-AGENT_SCRIPT= os.path.join(BASE_DIR, "agent_runner.py")
+AGENT_SCRIPT= os.path.join(BASE_DIR, "agents", "{agent_name}", "agent_terminal.py")
 
 # ─────────────────────────────────────────────
 #  UTILIDADES
@@ -88,7 +88,7 @@ def open_agent_terminal(agent_name):
     Compatible: Windows (CMD), macOS (Terminal.app), Linux (gnome-terminal/xterm/konsole/etc.)
     """
     python_exe = sys.executable
-    script = AGENT_SCRIPT
+    script = AGENT_SCRIPT.format(agent_name=agent_name)
     title = f"AGENTE: {agent_name.upper()}"
     system = platform.system()
 

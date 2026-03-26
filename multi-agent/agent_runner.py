@@ -64,6 +64,9 @@ def c(agent, key, text):
 #  PATHS
 # ─────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Adjust if running from subfolder (e.g., agents/alex/)
+while not os.path.exists(os.path.join(BASE_DIR, "shared")) and BASE_DIR != os.path.dirname(BASE_DIR):
+    BASE_DIR = os.path.dirname(BASE_DIR)
 
 def paths(agent_name):
     return {
