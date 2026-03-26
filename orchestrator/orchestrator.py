@@ -66,6 +66,7 @@ Chat:
     def call_ollama(self, prompt, model, temperature=0.7):
         try:
             import urllib.request
+            import urllib.error
             import json
             
             url = "http://localhost:11434/api/generate"
@@ -84,14 +85,20 @@ Chat:
             headers = {'Content-Type': 'application/json'}
             req = urllib.request.Request(url, data=data, headers=headers)
             
-            with urllib.request.urlopen(req, timeout=120) as response:
-                if response.status == 200:
-                    result = json.loads(response.read().decode('utf-8'))
-                    return result.get("response", "").strip()
-                else:
-                    return f"Error: Status {response.status}"
+            try:
+                with urllib.request.urlopen(req, timeout=30) as response:
+                    if response.status == 200:
+                        body = response.read().decode('utf-8')
+                        result = json.loads(body)
+                        return result.get("response", "").strip()
+                    else:
+                        return f"Error HTTP: {response.status}"
+            except urllib.error.URLError as e:
+                return f"Error de Conexión: {e.reason}"
+            except Exception as e:
+                return f"Error en Request: {str(e)}"
         except Exception as e:
-            return f"Error: {str(e)}"
+            return f"Error General: {str(e)}"
     
     def update_conversation(self, agent_name, response):
         conv_path = os.path.join(self.shared_path, "conversation.txt")
