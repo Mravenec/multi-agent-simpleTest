@@ -239,9 +239,9 @@ REGLAS:
         print(f"\n PROCESO DE PENSAMIENTO DE {current_agent.upper()}:")
         
         if not chat_lines and current_agent == "alex":
-            # Alex genera su propia apertura, no es predeterminada
+            # Alex genera su propia apertura sobre un tema interesante
             system_prompt, user_prompt = self.build_prompt(current_agent)
-            user_prompt += " Veo tu perfil con fotos de viajes..."
+            user_prompt += " Veo tu perfil de diseñadora... me gusta tu estilo."
             
             response_raw = self.call_ollama(system_prompt, user_prompt, config["model"])
             if response_raw and not response_raw.startswith("Error:"):
@@ -249,33 +249,45 @@ REGLAS:
                 if not clean.startswith("Error:") and len(clean) > 5:
                     response = clean
                     state["start_time"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-                    print(f"   Alex: 'Generaré mi propia apertura basada en su perfil'")
+                    print(f"   Alex: 'Generaré apertura sobre su perfil de diseñadora'")
                 else:
-                    response = "Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo. ¿Cuál fue el último sitio donde te perdiste?"
-                    print(f"   Alex: 'Usaré apertura fallback'")
+                    response = "Tu perfil de diseñadora me intriga. ¿Qué tipo de proyectos te apasionan más?"
+                    print(f"   Alex: 'Usaré apertura sobre diseño'")
             else:
-                response = "Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo. ¿Cuál fue el último sitio donde te perdiste?"
-                print(f"   Alex: 'Usaré apertura predeterminada por error'")
+                response = "Tu perfil de diseñadora me intriga. ¿Qué tipo de proyectos te apasionan más?"
+                print(f"   Alex: 'Usaré apertura predeterminada sobre diseño'")
         else:
-            # Obtener último mensaje para contexto - ARREGLADO
+            # Obtener último mensaje para contexto - ARREGLADO DEFINITIVAMENTE
             last_message = ""
             if chat_lines:
                 last_line = chat_lines[-1]
                 print(f"   🔍 Línea completa: '{last_line}'")
+                # Formato esperado: [timestamp] AGENT: mensaje
                 if ":" in last_line:
-                    # Buscar el último ":" que separa el nombre del mensaje
-                    last_colon = last_line.rfind(":")
-                    if last_colon != -1:
-                        # Extraer todo después del último ":"
-                        last_message = last_line[last_colon + 1:].strip()
+                    parts = last_line.split(":", 1)  # Separar en el primer ":"
+                    if len(parts) == 2:
+                        # parts[0] = [timestamp] AGENT, parts[1] = mensaje
+                        # Eliminar timestamps del inicio
+                        agent_part = parts[0].strip()
+                        if "[" in agent_part:
+                            # Quitar timestamp: [10:15:18] ALEX -> ALEX
+                            agent_name = agent_part.split("]")[-1].strip()
+                            message_part = parts[1].strip()
+                            last_message = message_part
+                            print(f"   ✅ Extraído: '{last_message}' (de {agent_name})")
+                        else:
+                            last_message = parts[1].strip()
+                            print(f"   ⚠️ Sin timestamp: '{last_message}'")
+                    else:
+                        print(f"   ❌ Formato inesperado")
             
             print(f"   📝 Analizando último mensaje: '{last_message}'")
             print(f"   🎯 Cargando personalidad simple...")
             
-            # Prefijos ultra simples
+            # Prefijos ultra simples - CAMBIADOS PARA NUEVO TEMA
             if current_agent == "alex":
-                prefixes = ["Esa foto...", "Me intriga...", "No eres como..."]
-                print(f"   🔍 Alex usa enfoque directo")
+                prefixes = ["Me gusta...", "Tu estilo...", "¿Qué tipo de..."]
+                print(f"   🔍 Alex usa enfoque de diseño")
             else:  # sofia
                 prefixes = ["Depende...", "Quizás...", "¿Y tú qué crees?"]
                 print(f"   🎭 Sofia usa enfoque misterioso")
