@@ -81,8 +81,16 @@ def paths(agent_name):
 
 
 # ─────────────────────────────────────────────
-#  UTILIDADES DE ARCHIVO
+#  UTILIDADES PARA MEMORIA
 # ─────────────────────────────────────────────
+def is_similar_to_memory(response, memory_list):
+    """Verifica si la respuesta es demasiado similar a frases recientes en memoria."""
+    response_lower = response.lower()
+    for mem in memory_list:
+        mem_lower = mem.lower()
+        if mem_lower in response_lower and len(mem) > 10:  # Evitar falsos positivos con palabras cortas
+            return True
+    return False
 def read_json(path):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
