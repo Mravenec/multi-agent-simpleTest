@@ -47,29 +47,23 @@ class MultiAgentOrchestrator:
             return f.read()
     
     def build_prompt(self, agent_name):
+        traits = "Directo, ingenioso" if agent_name == "alex" else "Aventurera, juguetona"
         conversation = self.load_conversation()
         
-        # Historial de chat real
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         
-        # LOG DE EJEMPLO PARA MARCAR EL ESTILO (Few-shot)
-        # Esto es lo que el modelo "imitará" sin saber que es una orden.
-        example_log = """Alex: Me gusta tu estilo en las fotos.
-Sofia: ¿Solo el estilo? Pensé que mis viajes dirían más.
-Alex: Lo dicen, pero prefiero ir descubriéndolo poco a poco.
----"""
+        # Framing de SIMULACIÓN HUMANA PURA
+        # No usamos la palabra "IA", "Modelo" o "Asistente" en ningún lado.
+        system = f"Eres {agent_name.upper()}. {traits}. Hablas con una persona que acabas de conocer. Sé breve, natural y NUNCA pidas disculpas ni digas que no puedes hacer algo."
         
         if not chat_lines:
-            # INICIO: El modelo completa el primer mensaje tras el ejemplo
-            full_prompt = f"{example_log}\n{agent_name.upper()}:"
+            user = f"Escribe tu primera frase para presentarte de forma interesante:"
         else:
-            # CONTINUACIÓN: El modelo sigue el hilo actual
             last_msgs = "\n".join(chat_lines[-3:])
-            full_prompt = f"{example_log}\n{last_msgs}\n{agent_name.upper()}:"
+            user = f"Sigue la charla:\n{last_msgs}\n{agent_name.upper()}:"
         
-        # Retornamos (system, user). System vacío para no disparar filtros.
-        return "", full_prompt
+        return system, user
     
     def call_ollama(self, system_prompt, user_prompt, model, temperature=0.7):
         try:
