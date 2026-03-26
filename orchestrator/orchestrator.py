@@ -81,7 +81,8 @@ Chat:
             }
             
             data = json.dumps(payload).encode('utf-8')
-            req = urllib.request.Request(url, data=data, content_type='application/json')
+            headers = {'Content-Type': 'application/json'}
+            req = urllib.request.Request(url, data=data, headers=headers)
             
             with urllib.request.urlopen(req, timeout=120) as response:
                 if response.status == 200:
