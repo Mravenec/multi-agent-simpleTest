@@ -49,26 +49,14 @@ class MultiAgentOrchestrator:
     def build_prompt(self, agent_name):
         conversation = self.load_conversation()
         
-        # Historial de mensajes 
+        # Historial de mensajes real
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         
-        # LOG DE REFERENCIA (Estilo)
-        base_log = """Alex: Me gusta tu estilo.
-Sofia: ¿Solo el estilo?
-Alex: No, también esa forma de lanzarte a la aventura.
-Sofia: Jeje, no paro. ¿Tú eres de los tranquilos?"""
-
-        if not chat_lines:
-            # INICIO: Forzamos el hook del usuario para coherencia
-            full_prompt = f"{base_log}\nAlex: Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo. ¿Cuál fue el último sitio donde te perdiste?\nSofia:"
-            if agent_name == "alex":
-                # Si es Alex, le damos el log y dejamos que él inicie con su hook
-                full_prompt = f"{base_log}\nAlex: Tienes una mirada"
-        else:
-            # CONTINUACIÓN
-            last_msgs = "\n".join(chat_lines[-3:])
-            full_prompt = f"{base_log}\n{last_msgs}\n{agent_name.upper()}:"
+        # PROMPT ULTRA-SIMPLE (Solo el chat actual)
+        # Sin ejemplos ni log base, para que el modelo 0.5B no se confunda.
+        last_msgs = "\n".join(chat_lines[-3:]) # Solo los últimos 2-3 mensajes
+        full_prompt = f"{last_msgs}\n{agent_name.upper()}:"
         
         return "", full_prompt
     
@@ -132,8 +120,8 @@ Sofia: Jeje, no paro. ¿Tú eres de los tranquilos?"""
         if not response: return ""
         
         # Eliminar bloques de código o etiquetas extrañas
-        response = re.sub(r'\[\d{2}:\d{2}:\d{2}\]', '', response) # Quitar timestamps alucinados
-        response = re.sub(r'\*\*[^*]+\*\*:', '', response) # Quitar labels en negrita
+        response = re.sub(r'\[\d{2}:\d{2}:\d{2}\]', '', response)
+        response = re.sub(r'\*\*[^*]+\*\*:', '', response)
         
         lines = response.split('\n')
         clean_lines = []
@@ -141,24 +129,21 @@ Sofia: Jeje, no paro. ¿Tú eres de los tranquilos?"""
             line = line.strip()
             if not line or len(line) < 2: continue
             
-            # Cortar si aparecen etiquetas de sistema o nombres de agentes
             meta_labels = ["CONVERSACIÓN PREVIA:", "PERSONALIDAD:", "CHAT:", "FICCIÓN:", "SOFIA:", "ALEX:"]
             if any(line.upper().startswith(label) for label in meta_labels):
-                # Si empieza con su propio nombre, quitamos el prefijo y seguimos
                 if line.upper().startswith(agent_name.upper()):
                     line = re.sub(f"^{agent_name.upper()}:?", "", line, flags=re.IGNORECASE).strip()
                 else:
-                    break # Hallucinación de otro, paramos
+                    break
             
             if line:
                 clean_lines.append(line)
-                
-        # Retornamos solo el primer párrafo sustancial para evitar repeticiones
+        
         return clean_lines[0].strip() if clean_lines else ""
 
     def switch_turn(self, current_agent):
         return "sofia" if current_agent == "alex" else "alex"
-    
+
     def run_turn(self):
         state = self.load_state()
         
@@ -172,16 +157,25 @@ Sofia: Jeje, no paro. ¿Tú eres de los tranquilos?"""
         # Load agent config
         config = self.load_agent_config(current_agent)
         
-        # Build prompt
-        system_prompt, user_prompt = self.build_prompt(current_agent)
+        # Inyectamos el primer turno si está vacío (Alex)
+        conversation = self.load_conversation()
+        lines = [l.strip() for l in conversation.split('\n') if l.strip()]
+        chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         
-        # Call model
-        response = self.call_ollama(system_prompt, user_prompt, config["model"], config["temperature"])
+        if not chat_lines and current_agent == "alex":
+            response = "Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo. ¿Cuál fue el último sitio donde te perdiste?"
+        else:
+            # Build prompt
+            system_prompt, user_prompt = self.build_prompt(current_agent)
+            
+            # Call model
+            response = self.call_ollama(system_prompt, user_prompt, config["model"], config["temperature"])
+            
+            # Clean response
+            if response and not response.startswith("Error:"):
+                response = self.clean_response(response, current_agent)
         
         if response and not response.startswith("Error:"):
-            # Clean response to enforce turns
-            response = self.clean_response(response, current_agent)
-
             # Check for completion keywords
             completion_keywords = ["sexo", "hotel", "cama", "desnudo", "deseo"]
             response_lower = response.lower()
@@ -227,7 +221,7 @@ if __name__ == "__main__":
     
     try:
         while orchestrator.run_turn():
-            time.sleep(2)  # Pausa reducida para conversación más ágil
+            time.sleep(2)
     except KeyboardInterrupt:
         print("\nConversación interrumpida por usuario")
     except Exception as e:
