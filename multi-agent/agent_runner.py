@@ -256,6 +256,10 @@ def clean_response(raw, agent_name):
         return ""
     text = "\n".join(lines)  # Mantener párrafos separados por líneas
 
+    # Enforce single line for Alex per personality
+    if agent_name == "alex" and "\n" in text:
+        text = text.split("\n")[0]
+
     # Filtro de patrones prohibidos
     text_lower = text.lower()
     for pat in FORBIDDEN_PATTERNS:
@@ -360,8 +364,8 @@ TU MEMORIA RECIENTE (NO repitas estas frases exactas, varía tu lenguaje):
 """
 
     user_prompt = (
-        f"CONVERSACIÓN RECIENTE:\n{history_text}\n"
-        f"Último mensaje de {interlocutor.capitalize()}: {last_message}\n\n"
+        f"MENSAJE A RESPONDER de {interlocutor.capitalize()}: {last_message}\n\n"
+        f"CONTEXTO DE LA CONVERSACIÓN RECIENTE (solo para referencia, no repitas):\n{history_text}\n"
         f"{agent_name.capitalize()}:"
     )
 
