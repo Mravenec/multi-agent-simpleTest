@@ -133,16 +133,36 @@ REGLAS ESTRICTAS:
     def clean_response(self, response, agent_name):
         if not response: return ""
         
-        # Eliminar etiquetas de monólogo si quedaron
+        # Limpieza PROFUNDA de metadatos de personalidad
+        response = re.sub(r'##.*', '', response, flags=re.DOTALL)  # Headers
+        response = re.sub(r'\*\*.*?\*\*', '', response, flags=re.DOTALL)  # Negritas
+        response = re.sub(r'- \*\*.*?\*\*:', '', response, flags=re.DOTALL)  # Listas con negrita
+        response = re.sub(r'- .*', '', response, flags=re.DOTALL)  # Todas las listas
+        response = re.sub(r'\[.*?\]', '', response, flags=re.DOTALL)  # Corchetes
+        response = re.sub(r'Tono:.*', '', response, flags=re.DOTALL)
+        response = re.sub(r'Ritmo:.*', '', response, flags=re.DOTALL)
+        response = re.sub(r'Temas favoritos:.*', '', response, flags=re.DOTALL)
+        response = re.sub(r'Evito:.*', '', response, flags=re.DOTALL)
+        response = re.sub(r'Señales de Interés:.*', '', response, flags=re.DOTALL)
+        response = re.sub(r'Prohibido Absolutamente:.*', '', response, flags=re.DOTALL)
+        response = re.sub(r'Ejemplos de mi Voz:.*', '', response, flags=re.DOTALL)
+        response = re.sub(r'Lo que busco en.*', '', response, flags=re.DOTALL)
+        response = re.sub(r'Dinámica Relacional:.*', '', response, flags=re.DOTALL)
+        response = re.sub(r'Fondo Personal:.*', '', response, flags=re.DOTALL)
+        response = re.sub(r'Esencia:.*', '', response, flags=re.DOTALL)
+        response = re.sub(r'Deseos Profundos:.*', '', response, flags=re.DOTALL)
+        response = re.sub(r'Miedos y Vulnerabilidades:.*', '', response, flags=re.DOTALL)
+        response = re.sub(r'Estilo de Comunicación:.*', '', response, flags=re.DOTALL)
+        
+        # Eliminar timestamps y etiquetas
         response = re.sub(r'\(pensando\):.*', '', response, flags=re.DOTALL)
         response = re.sub(r'\[\d{2}:\d{2}:\d{2}\]', '', response)
+        response = re.sub(r'\[\d{4}-\d{2}-\d{2}.*?\]', '', response, flags=re.DOTALL)
         
-        # Eliminar metadatos y ejemplos contaminantes
-        response = re.sub(r'- \*\*Ejemplos\*\*:.*', '', response, flags=re.DOTALL)
-        response = re.sub(r'ALEX:.*', '', response, flags=re.DOTALL)
-        response = re.sub(r'SOFIA:.*', '', response, flags=re.DOTALL)
+        # Limpiar caracteres extraños y espacios múltiples
+        response = re.sub(r'\s+', ' ', response).strip()
         
-        # Filtro de errores de identidad (muy importante)
+        # Filtro de errores de identidad
         self_referencing_patterns = [
             f"{agent_name.capitalize()}", f"soy {agent_name}", f"soy un",
             "soy una", "como asistente", "modelo de lenguaje"
