@@ -1,4 +1,0 @@
-# Conversación Multi-Agente entre Alex y Sofia
-## Inicio: 2026-03-25
-
-=== INICIO DE CONVERSIÓN ===
