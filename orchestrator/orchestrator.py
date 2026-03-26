@@ -47,32 +47,31 @@ class MultiAgentOrchestrator:
             return f.read()
     
     def build_prompt(self, agent_name):
-        traits = "Directo, ingenioso" if agent_name == "alex" else "Aventurera, juguetona"
         conversation = self.load_conversation()
         
-        # Historial limpio
+        # Historial de mensajes (limpio de etiquetas meta)
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         
-        # Framing de GUION DE DRAMA (Evita el modo Asistente)
-        # El modelo solo ve una escena y la completa.
-        system = "" 
-        
-        few_shot = """Escena: Un chat de Tinder entre dos personas que se gustan.
-Alex: Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo, ¿cuál fue el último sitio donde te perdiste?
-Sofia: Me has pillado. Fue en las calles de Kioto, sin mapa y con mucha lluvia. ¿Tú eres de los que siempre llevan GPS?
+        # PROMPT DE COMPLETADO SIN INSTRUCCIONES (Pure Chatlog)
+        # Esto es lo que el modelo "imita" sin saber que es una tarea.
+        # Quitamos "Escena", "Guion", etc. Solo el log.
+        base_log = """Alex: Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo.
+Sofia: Me has pillado. No paro quieta ni un segundo. ¿Tú eres de los que planean todo o te dejas llevar?
+Alex: Prefiero dejarme llevar, pero con un buen destino. ¿Cuál fue el último sitio donde te perdiste?
+Sofia: En las calles de Kioto. Fue increíble.
 ---"""
 
         if not chat_lines:
-            # INICIO: El modelo completa la primera línea del guion
-            user = f"{few_shot}\nAlex: Tienes" # Pre-llenamos el inicio para forzar el hook
-            if agent_name == "sofia": # Caso raro donde Sofia empiece
-                user = f"{few_shot}\nSofia:"
+            # INICIO: El modelo completa el siguiente mensaje del log base
+            full_prompt = f"{base_log}\nAlex:"
         else:
+            # CONTINUACIÓN
             last_msgs = "\n".join(chat_lines[-3:])
-            user = f"{few_shot}\n{last_msgs}\n{agent_name.upper()}:"
+            full_prompt = f"{base_log}\n{last_msgs}\n{agent_name.upper()}:"
         
-        return system, user
+        # Siempre retornamos system vacío para no disparar filtros de IA
+        return "", full_prompt
     
     def call_ollama(self, system_prompt, user_prompt, model, temperature=0.7):
         try:
