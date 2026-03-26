@@ -223,6 +223,16 @@ REGLAS ESTRICTAS:
                         response = prefix + clean
                         break
             
+            # FALLBACK: Respuestas predefinidas si todo falla
+            if response.startswith("Error:"):
+                if current_agent == "sofia":
+                    if "viajes" in last_message.lower() or "perdiste" in last_message.lower():
+                        response = "Depende del momento... ¿Y tú qué crees que encontré?"
+                    else:
+                        response = "Esa pregunta dice más de ti que de mí..."
+                else:  # alex
+                    response = "Me intriga tu respuesta..."
+            
         if response and not response.startswith("Error:"):
             self.update_conversation(current_agent, response)
             self.update_memory(current_agent, response)
