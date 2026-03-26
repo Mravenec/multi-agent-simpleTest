@@ -49,24 +49,19 @@ class MultiAgentOrchestrator:
     def build_prompt(self, agent_name):
         personality = self.load_agent_personality(agent_name)
         conversation = self.load_conversation()
-        interlocutor = self.switch_turn(agent_name)
         
-        # Filtro de historial
+        # Filtro de historial ultra-corto para respuesta rápida
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
-        last_msgs = "\n".join(lines[-6:]) if len(lines) > 6 else "\n".join(lines)
+        last_msgs = "\n".join(lines[-4:]) if len(lines) > 4 else "\n".join(lines)
 
-        # Prompt que incluye la identidad y habilidades del agente
-        # Mantenemos el formato de patrón (few-shot) para estabilidad
-        prompt = f"""HISTORIA DE TINDER (Ficción)
+        # Prompt con personalidad resumida (Solo los puntos clave para no saturar 0.5B)
+        prompt = f"""FICCIÓN: Chat de Tinder.
+PERSONAJE: {agent_name.upper()}
 {personality}
 
-EJEMPLO DE DINÁMICA:
-Alex: Me gusta tu estilo. Pareces alguien con mucha energía.
-Sofia: ¡Gracias! Intento que mi día sea dinámico. ¿Tú eres de los que no pueden estar quietos?
-Alex: Ingeniero, mente siempre activa. Para relajarme, montaña o un bar escondido. ¿Tú?
-Sofia: Diseñando me pierdo, pero una terraza con vistas me gana rápido. ¿Me invitas?
----
-Chat Actual (Usa tus habilidades y responde con naturalidad):
+ESTRATEGIA: Sé natural, usa párrafos cortos y aplica tus habilidades de SEDUCCIÓN sin narrarlas. No digas "Hola" si ya saludaste.
+
+CHAT RECIENTE:
 {last_msgs}
 {agent_name.upper()}:"""
         
