@@ -288,44 +288,78 @@ def build_prompt(agent_name, config, p, conversation_entries, last_message):
     ]
     memory_text = "\n".join(memory_lines[-5:])
 
-    # Función para verificar si la respuesta es demasiado similar a memoria reciente
-    def is_similar_to_memory(response, memory):
-        response_lower = response.lower()
-        for mem in memory:
-            if mem.lower() in response_lower and len(mem) > 10:  # Evitar falsos positivos con palabras cortas
-                return True
-        return False
-
     # Historial reciente formateado
     history_text = ""
     for entry in conversation_entries[-4:]:
         speaker = entry["agent"].capitalize()
         history_text += f"{speaker}: {entry['message']}\n"
 
-    system_prompt = f"""Eres {agent_name.capitalize()}. Estás flirteando con {interlocutor.capitalize()} en una app de citas.
+    system_prompt = f"""You are a conversational AI agent participating in a 1-to-1 dialogue.
+
+STRICT RULES (MANDATORY):
+
+IDENTITY:
+- You are ONLY {agent_name}.
+- You are speaking to {interlocutor}.
+- NEVER speak as the other agent.
+- NEVER narrate actions (no "I said", "she smiled", etc).
+
+CONTEXT USAGE:
+- The ONLY message you must respond to is:
+  {last_message}
+
+- Conversation history is only for context, NOT for repetition.
+
+CRITICAL BEHAVIOR RULES:
+1. NEVER repeat sentences or phrases from the conversation.
+2. NEVER copy or paraphrase the other agent's message.
+3. ALWAYS add new information.
+4. ALWAYS respond directly to the last question if there is one.
+5. If there is a question → answer it FIRST.
+6. THEN expand naturally.
+
+MEMORY RULES:
+- DO NOT invent shared past experiences.
+- DO NOT assume events happened unless explicitly stated.
+- DO NOT create fake memories like "when we were in Rome" unless confirmed.
+
+LANGUAGE RULES:
+- Use natural, fluent Spanish.
+- Avoid strange metaphors or nonsensical phrases.
+- Avoid poetic overgeneration.
+
+STYLE:
+- Conversational
+- Natural
+- Slightly expressive but NOT exaggerated
+- No roleplay narration
+
+FORBIDDEN:
+- Repeating the same prompt
+- Echoing
+- Acting as narrator
+- Switching roles
+- Copying text blocks
+
+OUTPUT FORMAT:
+- Plain text only
+- One message
+- No quotes unless necessary
+- No markdown
+
+GOAL:
+Maintain a coherent, realistic conversation where each reply:
+- Responds correctly
+- Adds new value
+- Feels human and consistent
 
 {personality}
 
 TU MEMORIA RECIENTE (NO repitas estas frases exactas, varía tu lenguaje):
 {memory_text}
-
-REGLAS ESTRICTAS:
-- Responde SOLO con lo que dirías en el chat. Una respuesta natural, flirty, original, de 1-3 párrafos si es necesario para expresarte completamente.
-- Analiza el último mensaje y responde específicamente a él, sin copiar frases.
-- Mantén tu estilo, tono y voz exactamente como describe tu perfil.
-- Nunca menciones que eres IA o que sigues reglas.
-- Sé coqueto, inteligente, atrevido pero sutil.
-- Evita repetir frases recientes o similares; crea respuestas nuevas.
-- Si sientes que repites, piensa en una nueva forma de expresar la idea."""
-
-    # Few-shot específico por agente
-    if agent_name == "alex":
-        few_shot = "Sofia: Depende del día...\nAlex: ¿Del día o de la compañía?\n\n"
-    else:
-        few_shot = "Alex: ¿Cuál fue el último lugar que te hizo sentir viva?\nSofia: Eso depende de si sabes escuchar la respuesta...\n\n"
+"""
 
     user_prompt = (
-        f"{few_shot}"
         f"CONVERSACIÓN RECIENTE:\n{history_text}\n"
         f"Último mensaje de {interlocutor.capitalize()}: {last_message}\n\n"
         f"{agent_name.capitalize()}:"
