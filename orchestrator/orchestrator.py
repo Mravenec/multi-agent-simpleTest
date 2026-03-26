@@ -47,17 +47,24 @@ class MultiAgentOrchestrator:
             return f.read()
     
     def build_prompt(self, agent_name):
-        # Tomamos solo los rasgos, ignorando el trabajo
-        personality = self.load_agent_personality(agent_name)
-        traits = "Directo, coqueto, ingenioso" if agent_name == "alex" else "Aventurera, apasionada, juguetona"
-        
+        traits = "Directo, ingenioso" if agent_name == "alex" else "Aventurera, juguetona"
         conversation = self.load_conversation()
+        
+        # Historial muy corto para evitar que el tono "asistente" se contagie
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
-        last_msgs = "\n".join(chat_lines[-3:]) if len(chat_lines) > 3 else "\n".join(chat_lines)
+        last_msgs = "\n".join(chat_lines[-2:]) if len(chat_lines) > 2 else "\n".join(chat_lines)
 
-        system = f"Eres {agent_name.upper()}. {traits}. Estás en una cita. Sé natural, breve y NO hables de trabajo ni de IA."
-        user = f"Chat:\n{last_msgs}\n{agent_name.upper()}:"
+        # System prompt AGRESIVO para matar al "Asistente"
+        system = f"""ACTÚA COMO UN HUMANO REAL (ROL).
+Tu nombre es {agent_name.upper()}. Eres {traits}.
+REGLAS CRÍTICAS:
+- NUNCA digas "puedo ayudarte", "estoy aquí para", "lo siento" o "como modelo".
+- NUNCA uses etiquetas como [18:30] o SOFIA:.
+- Habla en primera persona, breve y con actitud coqueta.
+- Si no sabes qué decir, haz una pregunta atrevida."""
+        
+        user = f"Contexto:\n{last_msgs}\n{agent_name.upper()}:"
         
         return system, user
     
