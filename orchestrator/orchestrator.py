@@ -47,21 +47,17 @@ class MultiAgentOrchestrator:
             return f.read()
     
     def build_prompt(self, agent_name):
-        personality = self.load_agent_personality(agent_name)
+        # Tomamos solo la primera línea de la personalidad (resumen)
+        personality = self.load_agent_personality(agent_name).split('\n')[1] # Tomar la línea del ID
         conversation = self.load_conversation()
         
-        # Filtro de historial ultra-corto para respuesta rápida
+        # Últimos 2 mensajes para contexto mínimo
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
-        last_msgs = "\n".join(lines[-4:]) if len(lines) > 4 else "\n".join(lines)
+        last_msgs = "\n".join(lines[-2:]) if len(lines) > 2 else "\n".join(lines)
 
-        # Prompt con personalidad resumida (Solo los puntos clave para no saturar 0.5B)
-        prompt = f"""FICCIÓN: Chat de Tinder.
-PERSONAJE: {agent_name.upper()}
-{personality}
-
-ESTRATEGIA: Sé natural, usa párrafos cortos y aplica tus habilidades de SEDUCCIÓN sin narrarlas. No digas "Hola" si ya saludaste.
-
-CHAT RECIENTE:
+        # Prompt ultra-ligero para 0.5B en CPU
+        prompt = f"""Tinder: {personality}
+Chat:
 {last_msgs}
 {agent_name.upper()}:"""
         

@@ -1,2 +1,2 @@
 # Memoria de Alex
-Inicio de la cita virtual con habilidades estratégicas.
+Inicio de la cita virtual optimizada para CPU.
