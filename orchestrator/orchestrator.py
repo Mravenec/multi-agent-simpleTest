@@ -47,28 +47,21 @@ class MultiAgentOrchestrator:
             return f.read()
     
     def build_prompt(self, agent_name):
-        # Tomamos solo la identidad básica para no confundir al modelo
-        personality = self.load_agent_personality(agent_name).split('\n')[1]
+        identity = self.load_agent_personality(agent_name).split('\n')[1]
         conversation = self.load_conversation()
         
-        # Historial para contexto
+        # Historial limpio
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
-        # Ignorar las líneas de prefijo del archivo
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         last_msgs = "\n".join(chat_lines[-4:]) if len(chat_lines) > 4 else "\n".join(chat_lines)
 
-        # Prompt de patrón (Few-shot) - ELIMINAMOS INSTRUCCIONES, SOLO PATRÓN
-        # Esto obliga al modelo a "continuar" el estilo en vez de "obedecer"
-        prompt = f"""Alex: Me gusta tu estilo en las fotos.
-Sofia: ¿Solo el estilo? Pensé que las fotos de mis viajes dirían más.
-Alex: Lo dicen, pero prefiero ir descubriéndolo poco a poco. ¿Cuál es el último sitio donde te perdiste?
----
-{last_msgs}
-{agent_name.upper()}:"""
+        # Framing neutral para evitar bloqueos de seguridad del modelo 0.5B
+        system = f"Eres {identity}. Charla casual. UN PÁRRAFO corto. No digas 'Hola'."
+        user = f"Continúa:\n{last_msgs}\n{agent_name.upper()}:"
         
-        return prompt
+        return system, user
     
-    def call_ollama(self, prompt, model, temperature=0.7):
+    def call_ollama(self, system_prompt, user_prompt, model, temperature=0.7):
         try:
             import urllib.request
             import urllib.error
@@ -77,7 +70,8 @@ Alex: Lo dicen, pero prefiero ir descubriéndolo poco a poco. ¿Cuál es el últ
             url = "http://localhost:11434/api/generate"
             payload = {
                 "model": model,
-                "prompt": prompt,
+                "system": system_prompt,
+                "prompt": user_prompt,
                 "stream": False,
                 "options": {
                     "temperature": temperature,
@@ -168,10 +162,10 @@ Alex: Lo dicen, pero prefiero ir descubriéndolo poco a poco. ¿Cuál es el últ
         config = self.load_agent_config(current_agent)
         
         # Build prompt
-        prompt = self.build_prompt(current_agent)
+        system_prompt, user_prompt = self.build_prompt(current_agent)
         
         # Call model
-        response = self.call_ollama(prompt, config["model"], config["temperature"])
+        response = self.call_ollama(system_prompt, user_prompt, config["model"], config["temperature"])
         
         if response and not response.startswith("Error:"):
             # Clean response to enforce turns
