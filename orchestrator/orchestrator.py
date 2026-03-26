@@ -49,12 +49,14 @@ class MultiAgentOrchestrator:
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         last_chat = "\n".join(chat_lines[-3:]) if chat_lines else ""
         
-        # PATTERN-MATCHING (Ejemplo mínimo de chat para 0.5B)
-        # Esto enseña al modelo el formato sin usar instrucciones abstractas.
-        chat_format = "Alex: Hola.\nSofia: Hola, ¿qué tal?\n\n"
+        # ANCLA DE IDIOMA Y ROL (Strict Spanish + No Assistant)
+        system_prompt = f"Eres {agent_name.capitalize()}. Hablas ESPAÑOL natural. No eres un asistente. Eres una persona real."
+        
+        # Few-shot puramente en español
+        chat_format = "Alex: ¿Qué tal?\nSofia: Pues bien, aquí andamos.\n\n"
         user_prompt = f"{chat_format}{last_chat}\n{agent_name.capitalize()}:"
         
-        return "", user_prompt
+        return system_prompt, user_prompt
     
     def call_ollama(self, system_prompt, user_prompt, model, temperature=0.8):
         try:
@@ -69,11 +71,11 @@ class MultiAgentOrchestrator:
                 "prompt": user_prompt,
                 "stream": False,
                 "options": {
-                    "temperature": 0.4, # Menor temperatura = menos asistencialismo
+                    "temperature": 0.4, # Estabilidad
                     "top_p": 0.9,
                     "top_k": 20,
                     "num_predict": 100,
-                    "stop": ["\n", "\n\n", "Alex:", "Sofia:", "[", "Lo siento", "asistir"]
+                    "stop": ["\n", "Alex:", "Sofia:", "assist", "help", "Today"]
                 }
             }
             
@@ -108,23 +110,21 @@ class MultiAgentOrchestrator:
     def clean_response(self, response, agent_name):
         if not response: return ""
         
-        # Extraer parte de (hablando)
-        if "(hablando):" in response:
-            response = response.split("(hablando):")[-1].strip()
-        elif f"{agent_name.capitalize()}:" in response:
-            response = response.split(f"{agent_name.capitalize()}:")[-1].strip()
-        
-        # Limpieza de pensamientos accidentales
+        # Eliminar etiquetas de monólogo si quedaron
         response = re.sub(r'\(pensando\):.*', '', response, flags=re.DOTALL)
         response = re.sub(r'\[\d{2}:\d{2}:\d{2}\]', '', response)
         
-        # Filtro de IA
-        ai_boilerplate = ["modelo de lenguaje", "inteligencia artificial", "creado por alibaba", "qwen"]
+        # Filtro de IA y Asistencialismo (En ambos idiomas)
+        ai_boilerplate = [
+            "modelo de lenguaje", "inteligencia artificial", "qwen", "alibaba",
+            "assist you", "help you", "today", "lo siento", "puedo ayudar"
+        ]
         if any(phrase in response.lower() for phrase in ai_boilerplate):
-            return "Error: IA Detectada"
+            return "Error: Respuesta contaminada."
 
+        # Solo tomar la primera línea de diálogo real
         lines = [l.strip() for l in response.split('\n') if l.strip()]
-        return lines[0] if lines else ""
+        return lines[0].strip() if lines else ""
 
     def switch_turn(self, current_agent):
         return "sofia" if current_agent == "alex" else "alex"
