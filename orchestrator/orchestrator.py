@@ -250,33 +250,49 @@ REGLAS:
                 print(f"   🔍 Línea completa: '{last_line}'")
                 # Formato esperado: [timestamp] AGENT: mensaje
                 if ":" in last_line:
-                    parts = last_line.split(":", 1)  # Separar en el primer ":"
-                    if len(parts) == 2:
-                        # parts[0] = [timestamp] AGENT, parts[1] = mensaje
-                        # Eliminar timestamps del inicio
-                        agent_part = parts[0].strip()
-                        if "[" in agent_part:
-                            # Quitar timestamp: [10:15:18] ALEX -> ALEX
-                            agent_name = agent_part.split("]")[-1].strip()
-                            message_part = parts[1].strip()
-                            last_message = message_part
-                            print(f"   ✅ Extraído: '{last_message}' (de {agent_name})")
-                        else:
-                            last_message = parts[1].strip()
-                            print(f"   ⚠️ Sin timestamp: '{last_message}'")
+                    parts = last_line.split(":", 2)  # Separar en máximo 2 partes
+                    if len(parts) >= 2:
+                        # parts[0] = [timestamp] AGENT, parts[1:] = mensaje
+                        # Buscar el contenido real después del nombre del agente
+                        if len(parts) == 3:
+                            # Formato: [timestamp] AGENT: mensaje
+                            message_content = parts[2].strip()
+                            last_message = message_content
+                            print(f"   ✅ Extraído: '{last_message}'")
+                        elif len(parts) == 2:
+                            # Formato: [timestamp] AGENT mensaje
+                            message_content = parts[1].strip()
+                            last_message = message_content
+                            print(f"   ✅ Extraído: '{last_message}'")
                     else:
-                        print(f"   ❌ Formato inesperado")
+                        print(f"   ❌ Formato inesperado: {len(parts)} partes")
+                else:
+                    print(f"   ❌ Sin ':' en la línea")
             
             print(f"   📝 Analizando último mensaje: '{last_message}'")
             print(f"   🎯 Cargando personalidad simple...")
             
-            # Prefijos simples y coherentes
+            # Prefijos variados y contextuales
             if current_agent == "alex":
-                prefixes = ["Me interesa...", "Tu trabajo...", "¿Qué tipo de..."]
-                print(f"   🔍 Alex usa enfoque de diseño")
+                if "trabajo" in last_message.lower() or "diseño" in last_message.lower():
+                    prefixes = ["Cuéntame más...", "¿Qué proyectos...", "Me fascina..."]
+                    print(f"   🔍 Alex responde sobre diseño")
+                elif "interesa" in last_message.lower() or "gusta" in last_message.lower():
+                    prefixes = ["Me encantaría...", "¿Y si hablamos...", "Podríamos..."]
+                    print(f"   🔍 Alex muestra interés activo")
+                else:
+                    prefixes = ["¿Qué tal si...", "Me gustaría...", "Cuéntame de..."]
+                    print(f"   🔍 Alex usa enfoque general")
             else:  # sofia
-                prefixes = ["Depende...", "Quizás...", "Es interesante..."]
-                print(f"   🎭 Sofia usa enfoque misterioso")
+                if "trabajo" in last_message.lower() or "diseño" in last_message.lower():
+                    prefixes = ["Depende del...", "Quizás algún...", "Es un arte..."]
+                    print(f"   🎭 Sofia responde sobre diseño")
+                elif "interesa" in last_message.lower() or "gusta" in last_message.lower():
+                    prefixes = ["Es curioso...", "Tal vez...", "Depende..."]
+                    print(f"   🎭 Sofia responde a interés")
+                else:
+                    prefixes = ["A veces...", "Quizás...", "Es complicado..."]
+                    print(f"   🎭 Sofia usa enfoque misterioso")
             
             response = "Error: Sin respuesta."
             
