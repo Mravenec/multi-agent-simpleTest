@@ -41,7 +41,7 @@ class MultiAgentOrchestrator:
         with open(conv_path, "r", encoding='utf-8') as f:
             return f.read()
 
-    def build_prompt(self, agent_name):
+    def build_prompt(self, agent_name, last_message="", chat_lines=None):
         conversation = self.load_conversation()
         # Simplificar: no cargar personalidades complejas que contaminan
         memory = self.load_agent_memory(agent_name)
