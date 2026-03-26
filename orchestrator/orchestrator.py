@@ -44,20 +44,24 @@ class MultiAgentOrchestrator:
     def build_prompt(self, agent_name):
         conversation = self.load_conversation()
         personality = self.load_agent_personality(agent_name)
+        memory = self.load_agent_memory(agent_name)
         
-        # Historial real mejorado
+        # Historial real mejorado - más contexto
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
-        last_chat = "\n".join(chat_lines[-2:]) if chat_lines else ""
+        last_chat = "\n".join(chat_lines[-3:]) if chat_lines else ""
         
         # Contexto claro de quién es quién
         other_agent = "sofia" if agent_name == "alex" else "alex"
         
-        # ANCLA DE IDIOMA Y ROL con identidad clara
+        # ANCLA DE IDIOMA Y ROL con identidad clara y memoria
         system_prompt = f"""Eres {agent_name.capitalize()}. Estás hablando con {other_agent.capitalize()}.
 Hablas ESPAÑOL natural. No eres un asistente. Eres una persona real.
 
 {personality}
+
+MEMORIA CONTEXTUAL:
+{memory}
 
 REGLAS ESTRICTAS:
 - NUNCA saludes (hola, cómo estás, buen día)
@@ -65,7 +69,8 @@ REGLAS ESTRICTAS:
 - Siempre responde DIRECTAMENTE al último mensaje de {other_agent.capitalize()}
 - Máximo 2 líneas por respuesta
 - Usa tu voz única según tu perfil
-- MANTÉN EL CONTEXSO de la conversación"""
+- NUNCA repitas la misma respuesta
+- EVITA patrones repetitivos"""
         
         # Few-shot con personalidad específica
         if agent_name == "alex":
@@ -131,6 +136,11 @@ REGLAS ESTRICTAS:
         # Eliminar etiquetas de monólogo si quedaron
         response = re.sub(r'\(pensando\):.*', '', response, flags=re.DOTALL)
         response = re.sub(r'\[\d{2}:\d{2}:\d{2}\]', '', response)
+        
+        # Eliminar metadatos y ejemplos contaminantes
+        response = re.sub(r'- \*\*Ejemplos\*\*:.*', '', response, flags=re.DOTALL)
+        response = re.sub(r'ALEX:.*', '', response, flags=re.DOTALL)
+        response = re.sub(r'SOFIA:.*', '', response, flags=re.DOTALL)
         
         # Filtro de errores de identidad (muy importante)
         self_referencing_patterns = [
@@ -225,13 +235,37 @@ REGLAS ESTRICTAS:
             
             # FALLBACK: Respuestas predefinidas si todo falla
             if response.startswith("Error:"):
+                # Cargar respuestas anteriores para evitar repeticiones
+                memory = self.load_agent_memory(current_agent)
+                
                 if current_agent == "sofia":
                     if "viajes" in last_message.lower() or "perdiste" in last_message.lower():
-                        response = "Depende del momento... ¿Y tú qué crees que encontré?"
+                        fallback_responses = [
+                            "Depende del momento... ¿Y tú qué crees que encontré?",
+                            "Esa pregunta dice más de ti que de mí...",
+                            "Quizás algún día te lo cuente..."
+                        ]
                     else:
-                        response = "Esa pregunta dice más de ti que de mí..."
+                        fallback_responses = [
+                            "Esa pregunta dice más de ti que de mí...",
+                            "Depende del día y la compañía...",
+                            "¿Y tú qué crees que debería responder?"
+                        ]
                 else:  # alex
-                    response = "Me intriga tu respuesta..."
+                    fallback_responses = [
+                        "Me intriga tu respuesta...",
+                        "No eres como las demás...",
+                        "Esa foto tiene historia...",
+                        "Hay algo en tu forma de hablar..."
+                    ]
+                
+                # Elegir respuesta que no esté en la memoria
+                for fallback in fallback_responses:
+                    if fallback not in memory:
+                        response = fallback
+                        break
+                else:
+                    response = fallback_responses[0]  # Último recurso
             
         if response and not response.startswith("Error:"):
             self.update_conversation(current_agent, response)
