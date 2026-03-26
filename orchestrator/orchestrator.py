@@ -49,13 +49,14 @@ class MultiAgentOrchestrator:
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         last_chat = "\n".join(chat_lines[-3:]) if chat_lines else ""
         
-        # PROMPT DE COMPLETADO RAW
-        # Sin system_prompt para que el modelo 0.5B sea puro autocompletado de chat.
-        system_prompt = ""
-        traits = "misteriosa y juguetona" if agent_name == "sofia" else "directo y seguro"
-        user_prompt = f"{agent_name.capitalize()} es {traits} en un chat.\n\n{last_chat}\n{agent_name.capitalize()}:"
+        # ANCLA DE ROL (Para evitar confusión de identidad en 0.5B)
+        # Definimos ambos roles para que el modelo sepa quién NO es.
+        roles = "Alex es un hombre directo. Sofia es una mujer misteriosa."
+        instruction = f"Solo escribe lo que dice {agent_name.capitalize()}."
         
-        return system_prompt, user_prompt
+        user_prompt = f"{roles}\n{instruction}\n\n{last_chat}\n{agent_name.capitalize()}:"
+        
+        return "", user_prompt
     
     def call_ollama(self, system_prompt, user_prompt, model, temperature=0.8):
         try:
