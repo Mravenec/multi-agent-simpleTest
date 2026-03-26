@@ -47,17 +47,22 @@ class MultiAgentOrchestrator:
             return f.read()
     
     def build_prompt(self, agent_name):
-        # Tomamos solo la primera línea de la personalidad (resumen)
-        personality = self.load_agent_personality(agent_name).split('\n')[1] # Tomar la línea del ID
+        # Tomamos solo la identidad básica para no confundir al modelo
+        personality = self.load_agent_personality(agent_name).split('\n')[1]
         conversation = self.load_conversation()
         
-        # Últimos 2 mensajes para contexto mínimo
+        # Historial para contexto
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
-        last_msgs = "\n".join(lines[-2:]) if len(lines) > 2 else "\n".join(lines)
+        # Ignorar las líneas de prefijo del archivo
+        chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
+        last_msgs = "\n".join(chat_lines[-4:]) if len(chat_lines) > 4 else "\n".join(chat_lines)
 
-        # Prompt ultra-ligero para 0.5B en CPU
-        prompt = f"""Tinder: {personality}
-Chat:
+        # Prompt de patrón (Few-shot) - ELIMINAMOS INSTRUCCIONES, SOLO PATRÓN
+        # Esto obliga al modelo a "continuar" el estilo en vez de "obedecer"
+        prompt = f"""Alex: Me gusta tu estilo en las fotos.
+Sofia: ¿Solo el estilo? Pensé que las fotos de mis viajes dirían más.
+Alex: Lo dicen, pero prefiero ir descubriéndolo poco a poco. ¿Cuál es el último sitio donde te perdiste?
+---
 {last_msgs}
 {agent_name.upper()}:"""
         
