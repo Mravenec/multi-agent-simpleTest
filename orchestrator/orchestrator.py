@@ -51,18 +51,18 @@ class MultiAgentOrchestrator:
         conversation = self.load_conversation()
         interlocutor = self.switch_turn(agent_name)
         
-        # Últimos 3 mensajes para contexto ligero
-        lines = [l for l in conversation.split('\n') if l.strip()]
-        last_context = "\n".join(lines[-4:]) if len(lines) > 4 else "\n".join(lines)
+        # Últimos mensajes para contexto
+        lines = [l.strip() for l in conversation.split('\n') if l.strip()]
+        last_msgs = "\n".join(lines[-6:]) if len(lines) > 6 else "\n".join(lines)
 
-        # Prompt de una sola línea de respuesta
-        prompt = f"""Chat de Tinder. 
-{agent_name.upper()} es {personality}.
-Responde SOLO con UNA FRASE corta y coqueta.
-
-Conversación previa:
-{last_context}
-
+        # Prompt de patrón con ritmo natural y párrafos
+        prompt = f"""Alex: Hola, me encantó tu estilo en las fotos. Pareces alguien con mucha energía.
+Sofia: ¡Gracias! Intento que mi día a día sea dinámico. ¿Tú también eres de los que no pueden estar quietos?
+Alex: Totalmente. Soy ingeniero, así que mi mente siempre está dando vueltas a algo. Pero para relajarme, nada como una buena ruta de montaña o descubrir un bar escondido. ¿Qué es lo que más te hace desconectar a ti?
+Sofia: Me encanta perderme diseñando, pero si hablamos de salir, una terraza con buenas vistas y una charla interesante me ganan rápido. ¿Me estás invitando a uno de esos sitios escondidos?
+---
+Chat Actual (Mantén el tono natural y escribe un párrafo corto):
+{last_msgs}
 {agent_name.upper()}:"""
         
         return prompt
@@ -107,31 +107,30 @@ Conversación previa:
     def clean_response(self, response, agent_name):
         if not response: return ""
         
-        # Cortar en la primera mención de cualquier agente
         lines = response.split('\n')
-        first_line = ""
+        clean_lines = []
         for line in lines:
             line = line.strip()
             if not line: continue
             
-            # Si la línea contiene etiquetas del prompt, cortamos
+            # Cortar si aparecen etiquetas de sistema
             meta_labels = ["CONVERSACIÓN PREVIA:", "PERSONALIDAD:", "CHAT DE TINDER:", "ESTA ES UNA FICCIÓN"]
             if any(label in line.upper() for label in meta_labels):
                 break
 
-            # Si la línea empieza con un nombre de agente (hallucinado), ignoramos el resto
+            # Cortar si el otro agente intenta hablar
             if any(line.upper().startswith(name.upper()) for name in ["ALEX", "SOFIA"]):
-                # Si empieza con su propio nombre, quitamos el prefijo y seguimos una vez
                 if line.upper().startswith(agent_name.upper()):
+                    # Limpiamos el prefijo si es propio
                     line = re.sub(f"^{agent_name.upper()}:?", "", line, flags=re.IGNORECASE).strip()
                 else:
-                    break # Es el otro agente hablando, paramos
+                    break # Hallucinación de otro agente, paramos
             
             if line:
-                first_line = line
-                break
+                clean_lines.append(line)
                 
-        return first_line.strip()
+        # Retornamos los párrafos encontrados (máximo 2 para no ser pesados)
+        return "\n".join(clean_lines[:2]).strip()
 
     def switch_turn(self, current_agent):
         return "sofia" if current_agent == "alex" else "alex"
