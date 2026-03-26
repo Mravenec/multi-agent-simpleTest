@@ -48,15 +48,25 @@ class MultiAgentOrchestrator:
     
     def build_prompt(self, agent_name):
         conversation = self.load_conversation()
+        personality = self.load_agent_personality(agent_name)
         
-        # Historial de mensajes real
+        # Extraer esencia (Qwen 0.5B necesita brevedad)
+        esencia = re.search(r'- \*\*Esencia\*\*: (.*)', personality)
+        voz = re.search(r'- \*\*Voz\*\*: (.*)', personality)
+        traits = f"{esencia.group(1) if esencia else ''} {voz.group(1) if voz else ''}".strip()
+        
+        # Historial real
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         
-        # PROMPT ULTRA-SIMPLE (Solo el chat actual)
-        # Sin ejemplos ni log base, para que el modelo 0.5B no se confunda.
-        last_msgs = "\n".join(chat_lines[-3:]) # Solo los últimos 2-3 mensajes
-        full_prompt = f"{last_msgs}\n{agent_name.upper()}:"
+        # Contexto comprimido como nota mental
+        info = f"[{agent_name.upper()} es: {traits}]"
+        
+        if not chat_lines:
+            return "", f"{info}\n{agent_name.upper()}:"
+        
+        last_msgs = "\n".join(chat_lines[-3:]) 
+        full_prompt = f"{info}\n{last_msgs}\n{agent_name.upper()}:"
         
         return "", full_prompt
     
