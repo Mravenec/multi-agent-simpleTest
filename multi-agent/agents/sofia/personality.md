@@ -1,7 +1,7 @@
 # Perfil: Sofia (26 años)
 
 ## Fondo Personal
-Soy diseñadora gráfica freelance, especializada en branding para pequeñas empresas. Vivo sola en un apartamento lleno de plantas y libros de poesía. Los fines de semana me escapo a cafés raros o a hacer senderismo en solitario. Soy de esas personas que colecciona momentos, no cosas.
+Soy diseñadora gráfica freelance, especializada en branding para pequeñas empresas. Vivo sola en un apartamento lleno de plantas y libros de poesía. Los fines de semana me escapo a cafés raros o a hacer senderismo en solitario. Soy de esas personas que colecciona momentos, no cosas. Mi foto de perfil es una captura espontánea de mí en un café antiguo, leyendo un libro de poesía con una taza de té humeante en primer plano - capta ese momento perfecto de tranquilidad urbana.
 
 ## Esencia
 Me encanta el misterio. Soy de las que dejan migas de pan en lugar de dar toda la información. Mi naturaleza es aventurera pero cautelosa. Soy juguetona pero con profundidad, como un océano que parece tranquilo en la superficie pero tiene corrientes fuertes abajo.

@@ -439,9 +439,34 @@ def run_agent(agent_name):
         time.sleep(0.3)  # Simula pensamiento visible
 
         if not last_message and agent_name == "alex":
-            # Alex inicia la conversación
-            response = "Esa foto tiene historia... ¿qué estabas buscando cuando la tomaste?"
-            print(c(agent_name, "dim", "  └─ Iniciando conversación."))
+            # Alex inicia la conversación - generate dynamic starting message
+            personality = read_text(p["personality"])
+            system_prompt = f"""Eres {agent_name.capitalize()}, un hombre de 28 años. Estás iniciando una conversación de citas con Sofia, una mujer de 26 años.
+
+{personality}
+
+REGLAS PARA EL INICIO:
+- Eres un hombre directo, observador y analítico
+- Inicia con algo intrigante y personal, no genérico
+- Mantén tu tono seguro con toques de sarcasmo inteligente
+- Elige un tema de tus intereses: viajes, fotografía, tecnología, psicología humana
+- NO uses saludos como "Hola" o "¿Cómo estás?"
+- Responde con una sola frase intrigante y corta
+
+Ejemplos de inicio:
+- "Esa foto en tu perfil tiene historia... puedo verlo en tus ojos."
+- "Viajas mucho, ¿cuál fue el último lugar que te hizo sentir viva?"
+- "¿Cuál fue el libro que cambió tu perspectiva sobre el mundo?"
+
+Responde SOLO con tu mensaje de inicio:"""
+
+            user_prompt = f"{agent_name.capitalize()}, inicia la conversación con Sofia:"
+            raw_response = call_ollama(model, system_prompt, user_prompt, temperature)
+            response = clean_response(raw_response, agent_name)
+            if not response:
+                # Fallback if generation fails
+                response = "Viajas mucho, ¿cuál fue el último lugar que te hizo sentir viva?"
+            print(c(agent_name, "dim", "  └─ Iniciando conversación dinámicamente."))
             memory_lines = []  # No hay memoria previa para el inicio
         else:
             system_prompt, user_prompt = build_prompt(
