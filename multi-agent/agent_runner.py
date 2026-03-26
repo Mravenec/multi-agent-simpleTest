@@ -428,10 +428,18 @@ def run_agent(agent_name):
             # Alex inicia la conversación
             response = "Esa foto tiene historia... ¿qué estabas buscando cuando la tomaste?"
             print(c(agent_name, "dim", "  └─ Iniciando conversación."))
+            memory_lines = []  # No hay memoria previa para el inicio
         else:
             system_prompt, user_prompt = build_prompt(
                 agent_name, config, p, conversation_entries, last_message
             )
+
+            # Leer memoria para verificar similitud
+            memory_raw = read_text(p["memory"])
+            memory_lines = [
+                l.strip() for l in memory_raw.split("\n")
+                if l.strip() and not l.startswith("#") and not l.startswith("[")
+            ]
 
             # ── 3. Llamar a Ollama ──
             print(c(agent_name, "think", "\n  [3/4] Generando respuesta con Ollama..."))
