@@ -65,15 +65,22 @@ class MultiAgentOrchestrator:
         else:
             personality = "Soy Sofia, 26 años. Soy diseñadora. Soy misteriosa e inteligente."
         
-        # Sistema simple
+        # Sistema simple con MEMORIA integrada
+        memory = self.load_agent_memory(agent_name)
+        memory_text = "\n".join(memory.split('\n')[-3:])  # Últimas 3 respuestas
+        
         system_prompt = f"""Eres {agent_name.capitalize()}. Hablas con {other_agent.capitalize()}.
 
 {personality}
+
+TU MEMORIA RECIENTE (no repitas estas frases):
+{memory_text}
 
 REGLAS:
 - Responde directamente al último mensaje
 - Máximo 1 línea
 - NUNCA digas tu nombre
+- Evita frases que ya dijiste antes
 - NUNCA saludes"""
         
         # Few-shot con personalidad específica
@@ -243,34 +250,29 @@ REGLAS:
             state["start_time"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
             print(f"   Alex: 'Iniciaré conversación sobre diseño de forma simple'")
         else:
-            # Obtener último mensaje para contexto - ARREGLADO DEFINITIVAMENTE
+                        # Obtener último mensaje para contexto - PARSING ROBUSTO
             last_message = ""
             if chat_lines:
                 last_line = chat_lines[-1]
                 print(f"   🔍 Línea completa: '{last_line}'")
-                # Formato esperado: [timestamp] AGENT: mensaje
-                if ":" in last_line:
-                    parts = last_line.split(":", 2)  # Separar en máximo 2 partes
-                    if len(parts) >= 2:
-                        # parts[0] = [timestamp] AGENT, parts[1:] = mensaje
-                        # Buscar el contenido real después del nombre del agente
-                        if len(parts) == 3:
-                            # Formato: [timestamp] AGENT: mensaje
-                            message_content = parts[2].strip()
-                            last_message = message_content
-                            print(f"   ✅ Extraído: '{last_message}'")
-                        elif len(parts) == 2:
-                            # Formato: [timestamp] AGENT mensaje
-                            message_content = parts[1].strip()
-                            last_message = message_content
-                            print(f"   ✅ Extraído: '{last_message}'")
+                # Formato: [timestamp] AGENT: mensaje
+                # Encontrar la posición del último ":" después del agente
+                if "] " in last_line:
+                    # Separar timestamp del resto
+                    after_timestamp = last_line.split("] ", 1)[1]  # Después del timestamp
+                    if ": " in after_timestamp:
+                        agent_part, message_part = after_timestamp.split(": ", 1)
+                        last_message = message_part.strip()
+                        print(f"   ✅ Extraído correctamente: '{last_message}'")
                     else:
-                        print(f"   ❌ Formato inesperado: {len(parts)} partes")
+                        print(f"   ❌ No hay ': ' en el mensaje")
                 else:
-                    print(f"   ❌ Sin ':' en la línea")
+                    print(f"   ❌ Formato de timestamp incorrecto")
+            else:
+                print(f"   ⚠️ No hay mensajes previos")
             
             print(f"   📝 Analizando último mensaje: '{last_message}'")
-            print(f"   🎯 Cargando personalidad simple...")
+            print(f"   🎯 Cargando personalidad y memoria...")
             
             # Prefijos variados y contextuales
             if current_agent == "alex":
