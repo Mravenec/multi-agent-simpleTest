@@ -47,24 +47,22 @@ class MultiAgentOrchestrator:
             return f.read()
     
     def build_prompt(self, agent_name):
-        traits = "Directo, ingenioso" if agent_name == "alex" else "Aventurera, juguetona"
+        identity = self.load_agent_personality(agent_name).split('\n')[1]
         conversation = self.load_conversation()
         
-        # Historial muy corto para evitar que el tono "asistente" se contagie
+        # Historial de chat real
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
-        last_msgs = "\n".join(chat_lines[-2:]) if len(chat_lines) > 2 else "\n".join(chat_lines)
-
-        # System prompt AGRESIVO para matar al "Asistente"
-        system = f"""ACTÚA COMO UN HUMANO REAL (ROL).
-Tu nombre es {agent_name.upper()}. Eres {traits}.
-REGLAS CRÍTICAS:
-- NUNCA digas "puedo ayudarte", "estoy aquí para", "lo siento" o "como modelo".
-- NUNCA uses etiquetas como [18:30] o SOFIA:.
-- Habla en primera persona, breve y con actitud coqueta.
-- Si no sabes qué decir, haz una pregunta atrevida."""
         
-        user = f"Contexto:\n{last_msgs}\n{agent_name.upper()}:"
+        if not chat_lines:
+            # Lógica para INICIO DINÁMICO
+            system = f"Eres {agent_name.upper()}. Estás iniciando un chat en Tinder con Sofia. Sé creativo, natural y corto. NO saludes con 'Hola'."
+            user = f"Escribe tu primer mensaje para romper el hielo:"
+        else:
+            # Lógica para CONTINUACIÓN (Pure Completion)
+            last_msgs = "\n".join(chat_lines[-3:])
+            system = f"Eres {agent_name.upper()}. {identity}. Sé natural y breve."
+            user = f"Chat:\n{last_msgs}\n{agent_name.upper()}:"
         
         return system, user
     

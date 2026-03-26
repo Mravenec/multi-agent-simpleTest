@@ -1,8 +1,8 @@
 {
-  "current_turn": "sofia",
-  "iteration": 1,
+  "current_turn": "alex",
+  "iteration": 0,
   "max_iterations": 20,
   "conversation_active": true,
-  "last_response": "He estado viendo tu perfil y me pareces el tipo de persona con la que querría perderme en una ciudad nueva.",
-  "start_time": "2026-03-25T19:10:00Z"
+  "last_response": "",
+  "start_time": "2026-03-25T19:30:00Z"
 }
