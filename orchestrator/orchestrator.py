@@ -65,30 +65,30 @@ Chat:
     
     def call_ollama(self, prompt, model, temperature=0.7):
         try:
-            # Usar la API HTTP de Ollama para evitar el overhead del CLI
+            import urllib.request
+            import json
+            
+            url = "http://localhost:11434/api/generate"
             payload = {
                 "model": model,
                 "prompt": prompt,
                 "stream": False,
                 "options": {
                     "temperature": temperature,
-                    "num_predict": 100, # Limitar longitud para velocidad
+                    "num_predict": 100,
                     "stop": ["\n", "Alex:", "Sofia:", "ALEX:", "SOFIA:"]
                 }
             }
             
-            # Usar curl para no depender de librerías externas como 'requests'
-            import json
-            payload_json = json.dumps(payload).replace('"', '\\"')
-            cmd = f'curl -s -X POST http://localhost:11434/api/generate -d "{payload_json}"'
+            data = json.dumps(payload).encode('utf-8')
+            req = urllib.request.Request(url, data=data, content_type='application/json')
             
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120, encoding='utf-8')
-            
-            if result.returncode == 0:
-                data = json.loads(result.stdout)
-                return data.get("response", "").strip()
-            else:
-                return f"Error: {result.stderr}"
+            with urllib.request.urlopen(req, timeout=120) as response:
+                if response.status == 200:
+                    result = json.loads(response.read().decode('utf-8'))
+                    return result.get("response", "").strip()
+                else:
+                    return f"Error: Status {response.status}"
         except Exception as e:
             return f"Error: {str(e)}"
     
