@@ -210,54 +210,80 @@ REGLAS ESTRICTAS:
             return False
             
         current_agent = state["current_turn"]
-        print(f"Turno de: {current_agent}")
+        print(f"\n{'='*50}")
+        print(f" TURNO DE: {current_agent.upper()} (Iteración {state['iteration'] + 1})")
+        print(f"{'='*50}")
+        
         config = self.load_agent_config(current_agent)
         
         conversation = self.load_conversation()
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         
+        print(f" CONTEXTO ACTUAL:")
+        if chat_lines:
+            last_messages = chat_lines[-2:]
+            for msg in last_messages:
+                print(f"   {msg}")
+        else:
+            print("   (Inicio de conversación)")
+        
+        print(f"\n PROCESO DE PENSAMIENTO DE {current_agent.upper()}:")
+        
         if not chat_lines and current_agent == "alex":
             response = "Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo. ¿Cuál fue el último sitio donde te perdiste?"
             state["start_time"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+            print(f"   Alex: 'Iniciaré con mi línea de apertura sobre viajes y fotografía'")
         else:
-            # Obtener último mensaje para contexto
             last_message = ""
             if chat_lines:
                 last_line = chat_lines[-1]
                 if ":" in last_line:
                     last_message = last_line.split(":", 1)[1].strip()
             
-            # Prefijos contextuales según personalidad
+            print(f"   Analizando último mensaje: '{last_message[:50]}...'")
+            print(f"   Cargando personalidad y memoria...")
+            
             if current_agent == "alex":
                 if "viajes" in last_message.lower() or "foto" in last_message.lower():
                     prefixes = ["Esa foto...", "Me intriga ese lugar...", "No eres como...", "A ver, "]
+                    print(f"   Alex detecta tema de viajes/fotos")
                 else:
                     prefixes = ["Me intriga...", "No eres como...", "A ver, ", "Pues ", "La verdad "]
+                    print(f"   Alex usa enfoque general de misterio")
             else:  # sofia
-                if "viajes" in last_message.lower() or "foto" in last_message.lower():
+                if "viajes" in last_message.lower() or "perdiste" in last_message.lower():
                     prefixes = ["Depende del viaje...", "¿Y tú qué crees?", "Esa pregunta...", "Bueno, "]
+                    print(f"   Sofia responde a tema de viajes")
                 else:
                     prefixes = ["Depende...", "¿Y tú qué crees?", "Esa pregunta...", "Bueno, ", "A ver, "]
+                    print(f"   Sofia usa enfoque misterioso general")
             
             response = "Error: Sin respuesta."
             
-            for prefix in prefixes:
+            print(f"   Intentando generar respuesta con {len(prefixes)} prefijos...")
+            
+            for i, prefix in enumerate(prefixes):
+                print(f"   Intento {i+1}: Usando prefijo '{prefix}'")
                 system_prompt, user_prompt = self.build_prompt(current_agent)
                 user_prompt += f" {prefix}"
                 
                 response_raw = self.call_ollama(system_prompt, user_prompt, config["model"])
+                print(f"   Ollama response: '{response_raw[:100]}...'")
+                
                 if response_raw and not response_raw.startswith("Error:"):
                     clean = self.clean_response(response_raw, current_agent)
+                    print(f"   Limpieza: '{clean}'")
+                    
                     if not clean.startswith("Error:") and len(clean) > 5:
                         response = prefix + clean
+                        print(f"   Respuesta válida generada")
                         break
+                else:
+                    print(f"   Falló intento {i+1}")
             
-            # FALLBACK: Respuestas predefinidas si todo falla
             if response.startswith("Error:"):
-                # Cargar respuestas anteriores para evitar repeticiones
-                memory = self.load_agent_memory(current_agent)
-                
+                print(f"   Todos los intentos fallaron, usando fallback...")
                 if current_agent == "sofia":
                     if "viajes" in last_message.lower() or "perdiste" in last_message.lower():
                         fallback_responses = [
@@ -279,15 +305,19 @@ REGLAS ESTRICTAS:
                         "Hay algo en tu forma de hablar..."
                     ]
                 
-                # Elegir respuesta que no esté en la memoria
                 for fallback in fallback_responses:
-                    if fallback not in memory:
+                    if fallback not in self.load_agent_memory(current_agent):
                         response = fallback
+                        print(f"   Fallback seleccionado: '{response}'")
                         break
                 else:
                     response = fallback_responses[0]  # Último recurso
-            
+                    print(f"   Último recurso fallback: '{response}'")
+        
         if response and not response.startswith("Error:"):
+            print(f"\n RESPUESTA FINAL DE {current_agent.upper()}:")
+            print(f"   '{response}'")
+            
             self.update_conversation(current_agent, response)
             self.update_memory(current_agent, response)
             
@@ -296,10 +326,13 @@ REGLAS ESTRICTAS:
             state["last_response"] = response
             self.save_state(state)
             
-            print(f"{current_agent}: {response}")
+            print(f"   Memoria actualizada")
+            print(f"   Siguiente turno: {state['current_turn']}")
+            print(f"   Iteración: {state['iteration']}/{state['max_iterations']}")
+            
             return True
         else:
-            print(f"Error en respuesta de {current_agent}: {response}")
+            print(f"\n ERROR EN RESPUESTA DE {current_agent.upper()}: {response}")
             return False
 
 if __name__ == "__main__":
