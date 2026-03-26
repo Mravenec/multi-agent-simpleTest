@@ -41,36 +41,37 @@ class MultiAgentOrchestrator:
         with open(conv_path, "r", encoding='utf-8') as f:
             return f.read()
     
-    def load_system_base(self):
-        system_path = os.path.join(self.prompts_path, "system_base.md")
-        with open(system_path, "r", encoding='utf-8') as f:
-            return f.read()
-    
     def build_prompt(self, agent_name):
         conversation = self.load_conversation()
         personality = self.load_agent_personality(agent_name)
+        memory = self.load_agent_memory(agent_name)
         
-        # Extraer esencia (Qwen 0.5B necesita brevedad)
+        # Extraer esencia comprimida para Qwen 0.5B
         esencia = re.search(r'- \*\*Esencia\*\*: (.*)', personality)
         voz = re.search(r'- \*\*Voz\*\*: (.*)', personality)
         traits = f"{esencia.group(1) if esencia else ''} {voz.group(1) if voz else ''}".strip()
         
-        # Historial real
+        # Historial de chat
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
+        last_chat = "\n".join(chat_lines[-3:]) if chat_lines else "Sin mensajes previos."
         
-        # Contexto comprimido (Primera persona para mejor respuesta de Qwen 0.5B)
-        info = f"(Soy {agent_name.capitalize()}: {traits})"
-        
-        if not chat_lines:
-            return "", f"{info}\n{agent_name.upper()}:"
-        
-        last_msgs = "\n".join(chat_lines[-3:]) 
-        full_prompt = f"{info}\n{last_msgs}\n{agent_name.upper()}:"
+        # ESTRUCTURA DE MONÓLOGO INTERNO (Thought-Action-Speech)
+        full_prompt = f"""[TU IDENTIDAD: {agent_name.upper()}]
+[TUS RASGOS: {traits}]
+[TU MEMORIA: {memory.strip()}]
+
+[CHAT ACTUAL]:
+{last_chat}
+
+---
+Instrucción: Analiza la situación brevemente en (pensando) y luego responde naturalmente en (hablando). No uses lenguaje de IA.
+
+{agent_name.capitalize()} (pensando):"""
         
         return "", full_prompt
-    
-    def call_ollama(self, system_prompt, user_prompt, model, temperature=0.7):
+
+    def call_ollama(self, system_prompt, user_prompt, model, temperature=0.8):
         try:
             import urllib.request
             import urllib.error
@@ -83,11 +84,11 @@ class MultiAgentOrchestrator:
                 "prompt": user_prompt,
                 "stream": False,
                 "options": {
-                    "temperature": 0.8,
+                    "temperature": temperature,
                     "top_p": 0.9,
                     "top_k": 40,
-                    "num_predict": 80,
-                    "stop": ["\n", "A:", "S:", "Alex:", "Sofia:", "como modelo", "lenguaje"]
+                    "num_predict": 150,
+                    "stop": ["\n\n", "---", "[CHAT ACTUAL]", "[TU IDENTIDAD]"]
                 }
             }
             
@@ -95,122 +96,84 @@ class MultiAgentOrchestrator:
             headers = {'Content-Type': 'application/json'}
             req = urllib.request.Request(url, data=data, headers=headers)
             
-            try:
-                with urllib.request.urlopen(req, timeout=30) as response:
-                    if response.status == 200:
-                        body = response.read().decode('utf-8')
-                        result = json.loads(body)
-                        return result.get("response", "").strip()
-                    else:
-                        return f"Error HTTP: {response.status}"
-            except urllib.error.URLError as e:
-                return f"Error de Conexión: {e.reason}"
-            except Exception as e:
-                return f"Error en Request: {str(e)}"
+            with urllib.request.urlopen(req, timeout=30) as response:
+                if response.status == 200:
+                    body = response.read().decode('utf-8')
+                    result = json.loads(body)
+                    return result.get("response", "").strip()
+                return f"Error HTTP: {response.status}"
         except Exception as e:
-            return f"Error General: {str(e)}"
-    
+            return f"Error: {str(e)}"
+
     def update_conversation(self, agent_name, response):
         conv_path = os.path.join(self.shared_path, "conversation.txt")
         timestamp = datetime.now().strftime("%H:%M:%S")
-        
         with open(conv_path, "a", encoding='utf-8') as f:
             f.write(f"\n\n[{timestamp}] {agent_name.upper()}:\n{response}\n")
-    
+
     def update_memory(self, agent_name, new_response):
         memory_path = os.path.join(self.agents_path, agent_name, "memory.md")
         with open(memory_path, "r", encoding='utf-8') as f:
             current_memory = f.read()
-        
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
         new_memory = f"{current_memory}\n\n[{timestamp}] {new_response}"
-        
         with open(memory_path, "w", encoding='utf-8') as f:
             f.write(new_memory)
-    
+
     def clean_response(self, response, agent_name):
         if not response: return ""
         
-        # Eliminar bloques de código o etiquetas extrañas
+        # Extraer parte de (hablando)
+        if "(hablando):" in response:
+            response = response.split("(hablando):")[-1].strip()
+        elif f"{agent_name.capitalize()}:" in response:
+            response = response.split(f"{agent_name.capitalize()}:")[-1].strip()
+        
+        # Limpieza de pensamientos accidentales
+        response = re.sub(r'\(pensando\):.*', '', response, flags=re.DOTALL)
         response = re.sub(r'\[\d{2}:\d{2}:\d{2}\]', '', response)
-        response = re.sub(r'\*\*[^*]+\*\*:', '', response)
         
-        lines = response.split('\n')
-        clean_lines = []
-        for line in lines:
-            line = line.strip()
-            if not line or len(line) < 2: continue
-            
-            meta_labels = ["CONVERSACIÓN PREVIA:", "PERSONALIDAD:", "CHAT:", "FICCIÓN:", "SOFIA:", "ALEX:"]
-            if any(line.upper().startswith(label) for label in meta_labels):
-                if line.upper().startswith(agent_name.upper()):
-                    line = re.sub(f"^{agent_name.upper()}:?", "", line, flags=re.IGNORECASE).strip()
-                else:
-                    break
-            
-            if line:
-                clean_lines.append(line)
-        
-        return clean_lines[0].strip() if clean_lines else ""
+        # Filtro de IA
+        ai_boilerplate = ["modelo de lenguaje", "inteligencia artificial", "creado por alibaba", "qwen"]
+        if any(phrase in response.lower() for phrase in ai_boilerplate):
+            return "Error: IA Detectada"
+
+        lines = [l.strip() for l in response.split('\n') if l.strip()]
+        return lines[0] if lines else ""
 
     def switch_turn(self, current_agent):
         return "sofia" if current_agent == "alex" else "alex"
 
     def run_turn(self):
         state = self.load_state()
-        
         if not state["conversation_active"] or state["iteration"] >= state["max_iterations"]:
-            print("Conversación terminada")
             return False
-        
+            
         current_agent = state["current_turn"]
         print(f"Turno de: {current_agent}")
-        
-        # Load agent config
         config = self.load_agent_config(current_agent)
         
-        # Inyectamos el primer turno si está vacío (Alex)
         conversation = self.load_conversation()
         lines = [l.strip() for l in conversation.split('\n') if l.strip()]
         chat_lines = [l for l in lines if ":" in l and any(n in l.upper() for n in ["ALEX", "SOFIA"])]
         
         if not chat_lines and current_agent == "alex":
             response = "Tienes una mirada en esas fotos que me dice que los viajes son lo tuyo. ¿Cuál fue el último sitio donde te perdiste?"
+            # Set dynamic start time
+            state["start_time"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         else:
-            # Build prompt
             system_prompt, user_prompt = self.build_prompt(current_agent)
-            
-            # Call model
             response = self.call_ollama(system_prompt, user_prompt, config["model"], config["temperature"])
-            
-            # Clean response
             if response and not response.startswith("Error:"):
                 response = self.clean_response(response, current_agent)
         
         if response and not response.startswith("Error:"):
-            # Check for completion keywords
-            completion_keywords = ["sexo", "hotel", "cama", "desnudo", "deseo"]
-            response_lower = response.lower()
-            
-            if any(keyword in response_lower for keyword in completion_keywords):
-                print(f"¡Objetivo alcanzado! {current_agent}: {response}")
-                state["conversation_active"] = False
-                state["completed"] = True
-                state["completion_response"] = response
-                self.save_state(state)
-                return False
-            
-            # Update conversation
             self.update_conversation(current_agent, response)
-            
-            # Update memory
             self.update_memory(current_agent, response)
             
-            # Update state
             state["iteration"] += 1
             state["current_turn"] = self.switch_turn(current_agent)
             state["last_response"] = response
-            
             self.save_state(state)
             
             print(f"{current_agent}: {response}")
@@ -218,23 +181,13 @@ class MultiAgentOrchestrator:
         else:
             print(f"Error en respuesta de {current_agent}: {response}")
             return False
-    
-    def log_interaction(self, message):
-        log_path = os.path.join(self.logs_path, "run.log")
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with open(log_path, "a", encoding='utf-8') as f:
-            f.write(f"[{timestamp}] {message}\n")
 
 if __name__ == "__main__":
     base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     orchestrator = MultiAgentOrchestrator(base_path)
-    
-    print("Iniciando conversación multi-agente...")
-    
+    print("Iniciando simulación...")
     try:
         while orchestrator.run_turn():
             time.sleep(2)
-    except KeyboardInterrupt:
-        print("\nConversación interrumpida por usuario")
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error final: {e}")
