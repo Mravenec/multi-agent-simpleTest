@@ -147,7 +147,7 @@ class MultiAgentOrchestrator:
             state["start_time"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         else:
             # Reintentos con Prefijos Agresivos para 0.5B
-            prefixes = ["Pues ", "La verdad es que ", "A ver, "]
+            prefixes = ["Pues ", "La verdad es que ", "A ver, ", "Bueno, ", "Oye, ", "Mira, "]
             response = "Error: Sin respuesta."
             
             for prefix in prefixes:
@@ -157,7 +157,7 @@ class MultiAgentOrchestrator:
                 response_raw = self.call_ollama(system_prompt, user_prompt, config["model"])
                 if response_raw and not response_raw.startswith("Error:"):
                     clean = self.clean_response(response_raw, current_agent)
-                    if not clean.startswith("Error:"):
+                    if not clean.startswith("Error:") and len(clean) > 5:
                         response = prefix + clean
                         break
             
