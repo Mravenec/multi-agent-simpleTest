@@ -164,8 +164,12 @@ CRITERIOS ESTRICTOS DE RECHAZO (rechaza si NO cumple cualquiera):
 4. ¿No repite exactamente frases o ideas de mensajes anteriores?
 5. ¿Es coherente con el contexto de la conversación? (no salta a temas no relacionados)
 6. ¿La respuesta es relevante y continúa la conversación? (no tangentes irrelevantes)
+7. ¿La respuesta es CONCRETA y tiene significado real? (no frases abstractas o pseudo-poéticas sin referente claro)
+8. ¿NO inventa lugares, eventos o contextos no mencionados? (no alucinaciones contextuales)
+9. ¿NO contiene meta-mensajes? (no habla como sistema/IA, no describe personalidad fuera del rol)
+10. ¿La respuesta añade algo nuevo o profundiza la conversación? (no ecos semánticos o reformulaciones vacías)
 
-RECHAZA SIEMPRE que la respuesta no responda al mensaje recibido. No aceptes respuestas evasivas o que cambien de tema.
+RECHAZA SIEMPRE que la respuesta no responda directamente al mensaje recibido, invente contexto, sea abstracta sin sentido, o rompa el personaje.
 
 RESPONDE SOLO con este formato JSON (sin markdown, sin texto adicional):
 {"verdict": "accept", "reason": "explicación breve"}
