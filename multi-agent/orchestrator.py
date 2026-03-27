@@ -271,6 +271,79 @@ def open_agent_terminal(agent_name):
     except Exception as e:
         print(f"{C_RED}  Error abriendo terminal para {agent_name}: {e}{R}")
         log_orc(f"ERROR terminal {agent_name}: {e}")
+        return False
+
+def open_ollama_terminal_for_agent(agent_name):
+    """
+    Abre una terminal con la instancia Ollama del agente.
+    Compatible con Windows, macOS y Linux.
+    """
+    port = 11435 if agent_name == "alex" else 11436
+    title = f"{agent_name.upper()} Ollama {port}"
+    system = platform.system()
+
+    try:
+        if system == "Windows":
+            subprocess.Popen(
+                ["start", title, "cmd", "/k",
+                 f"set OLLAMA_HOST=0.0.0.0:{port} && ollama serve"],
+                shell=True, cwd=BASE_DIR
+            )
+
+        elif system == "Darwin":
+            apple_script = (
+                f'tell application "Terminal"\n'
+                f'  do script "cd \\"{BASE_DIR}\\" && '
+                f'set OLLAMA_HOST=0.0.0.0:{port} && ollama serve"\n'
+                f'  activate\nend tell'
+            )
+            subprocess.Popen(["osascript", "-e", apple_script])
+
+        else:  # Linux
+            emulators = [
+                ["gnome-terminal", "--title", title, "--",
+                 "bash", "-c", f"export OLLAMA_HOST=0.0.0.0:{port} && ollama serve"],
+                ["xterm", "-title", title, "-e",
+                 f"bash", "-c", f"export OLLAMA_HOST=0.0.0.0:{port} && ollama serve"],
+                ["konsole", "--title", title, "-e",
+                 f"bash", "-c", f"export OLLAMA_HOST=0.0.0.0:{port} && ollama serve"],
+                ["xfce4-terminal", "--title", title, "-e",
+                 f"export OLLAMA_HOST=0.0.0.0:{port} && ollama serve"],
+                ["lxterminal", "--title", title, "-e",
+                 f"export OLLAMA_HOST=0.0.0.0:{port} && ollama serve"],
+                ["mate-terminal", "--title", title, "-e",
+                 f"export OLLAMA_HOST=0.0.0.0:{port} && ollama serve"],
+                ["tilix", "--title", title, "-e",
+                 f"export OLLAMA_HOST=0.0.0.0:{port} && ollama serve"],
+            ]
+            launched = False
+            for em in emulators:
+                try:
+                    subprocess.Popen(em, cwd=BASE_DIR,
+                                     stdout=subprocess.DEVNULL,
+                                     stderr=subprocess.DEVNULL)
+                    print(f"{C_GRAY}  └─ Terminal: {em[0]}{R}")
+                    launched = True
+                    break
+                except FileNotFoundError:
+                    continue
+
+            if not launched:
+                print(f"{C_RED}  ⚠ Sin emulador de terminal. "
+                      f"Corriendo {agent_name} Ollama en background.{R}")
+                subprocess.Popen(
+                    ["bash", "-c", f"export OLLAMA_HOST=0.0.0.0:{port} && ollama serve"],
+                    cwd=BASE_DIR,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+        return True
+
+    except Exception as e:
+        print(f"{C_RED}  Error abriendo terminal Ollama para {agent_name}: {e}{R}")
+        log_orc(f"ERROR terminal Ollama {agent_name}: {e}")
+        return False
+
 def open_arbiter_terminal():
     """
     Abre una terminal con la instancia Ollama del árbitro.
@@ -452,6 +525,14 @@ def orchestrate():
     ok = open_arbiter_terminal()
     print(f"{C_GREEN}✓{R}" if ok else f"{C_RED}✗{R}")
     time.sleep(1.5)
+
+    # ── Abrir terminales Ollama para agentes ──
+    print(f"\n{C_WHITE}  Abriendo terminales Ollama para agentes...{R}")
+    for agent in ["alex", "sofia"]:
+        print(f"  → {ca(agent, agent.upper())} Ollama...", end=" ", flush=True)
+        ok = open_ollama_terminal_for_agent(agent)
+        print(f"{C_GREEN}✓{R}" if ok else f"{C_RED}✗{R}")
+        time.sleep(1.5)
 
     # ── Abrir terminales ──
     print(f"\n{C_WHITE}  Abriendo terminales de agentes...{R}")
