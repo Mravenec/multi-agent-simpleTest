@@ -114,7 +114,6 @@ def is_fallback_used(fallback, memory_list):
             similarity = len(intersection) / len(union)
             if similarity > threshold:
                 return True
-    return False
 def read_json(path):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -430,9 +429,9 @@ def signal_done(agent_name, p):
 def print_header(agent_name):
     p = paths(agent_name)
     personality_raw = read_text(p["personality"])
-    # Extract first few lines as summary
-    lines = personality_raw.split("\n")[:3]  # First 3 lines
-    personality_summary = " ".join([l.strip() for l in lines if l.strip() and not l.startswith("#")])
+    # Extract first few lines with actual content
+    lines = [l.strip() for l in personality_raw.split("\n") if l.strip() and not l.startswith("#")]
+    personality_summary = " ".join(lines[:3])  # First 3 content lines
     personality_summary = personality_summary[:100] + "..." if len(personality_summary) > 100 else personality_summary
 
     os.system("cls" if sys.platform == "win32" else "clear")
