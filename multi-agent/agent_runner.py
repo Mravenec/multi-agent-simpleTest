@@ -729,7 +729,6 @@ def run_agent(agent_name):
 
         # ── 4. Publicar ───────────────────────────────────────
         print(c(agent_name, "think", "\n  [4/4] Publicando respuesta..."))
-        update_conversation(agent_name, response, p)
         save_to_memory(agent_name, response, p)
 
         print(c(agent_name, "ok", f"\n  ✓ {agent_name.upper()}: \"{response}\""))
