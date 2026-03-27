@@ -1,8 +1,9 @@
 {
   "name": "sofia",
   "model": "qwen2.5:1.5b",
+  "ollama_port": 11436,
   "temperature": 0.9,
-  "max_tokens": 80,
+  "max_tokens": 120,
   "response_style": "flirty_playful",
   "interlocutor": "alex"
 }

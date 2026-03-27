@@ -1,2 +1,3 @@
 # Memoria de Sofia
-Inicio de la cita.
+_Historial de mis propias respuestas. No repetir estas ideas._
+
