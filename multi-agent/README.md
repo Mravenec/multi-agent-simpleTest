@@ -1,4 +1,4 @@
-# Sistema Multi-Agente v2 — Alex & Sofia
+# Sistema Multi-Agente v2 — Alex & Sofia estable/incoherente
 ## Arquitectura de 3 Instancias Ollama Independientes
 
 ---
