@@ -211,12 +211,19 @@ def open_agent_terminal(agent_name):
     title = f"AGENTE: {agent_name.upper()}"
     system = platform.system()
 
+    # Heredar variables de entorno críticas para Python
+    env = os.environ.copy()
+    env.update({
+        'PYTHONPATH': os.pathsep.join(sys.path),
+        'PYTHONHOME': os.path.dirname(os.path.dirname(python_exe)),
+    })
+
     try:
         if system == "Windows":
             subprocess.Popen(
                 ["start", title, "cmd", "/k",
                  python_exe, script, agent_name],
-                shell=True, cwd=BASE_DIR
+                shell=True, cwd=BASE_DIR, env=env
             )
 
         elif system == "Darwin":
@@ -248,7 +255,7 @@ def open_agent_terminal(agent_name):
             launched = False
             for em in emulators:
                 try:
-                    subprocess.Popen(em, cwd=BASE_DIR,
+                    subprocess.Popen(em, cwd=BASE_DIR, env=env,
                                      stdout=subprocess.DEVNULL,
                                      stderr=subprocess.DEVNULL)
                     print(f"{C_GRAY}  └─ Terminal: {em[0]}{R}")
@@ -262,7 +269,7 @@ def open_agent_terminal(agent_name):
                       f"Corriendo {agent_name} en background.{R}")
                 subprocess.Popen(
                     [python_exe, script, agent_name],
-                    cwd=BASE_DIR,
+                    cwd=BASE_DIR, env=env,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL
                 )
