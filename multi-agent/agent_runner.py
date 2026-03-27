@@ -659,6 +659,9 @@ def run_agent(agent_name):
 
         if is_opening:
             system_prompt, user_prompt = build_opening_prompt(agent_name, p, model)
+            # Include arbiter feedback if retrying
+            if arb_rejected:
+                system_prompt += f"\n\n⚠ INSTRUCCIÓN ESPECIAL (el árbitro rechazó tu respuesta anterior):\n- Razón del rechazo: {arb_reason}\n- Debes crear una respuesta COMPLETAMENTE diferente\n- NO uses ninguna frase de tus intentos anteriores"
             print(c(agent_name, "dim", "  └─ Modo apertura de conversación"))
         else:
             system_prompt, user_prompt = build_agent_prompt(
