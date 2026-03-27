@@ -102,7 +102,14 @@ def append_text(path, text):
 def update_conversation(agent_name, response, conv_path):
     """Escribe la respuesta del agente al archivo compartido de conversación."""
     ts = datetime.now().strftime("%H:%M:%S")
-    append_text(conv_path, f"\n\n[{ts}] {agent_name.upper()}:\n{response}\n")
+    text = f"\n\n[{ts}] {agent_name.upper()}:\n{response}\n"
+    try:
+        append_text(conv_path, text)
+        print(f"DEBUG: Conversation updated for {agent_name}: {response[:30]}...")
+        log_orc(f"Conversation updated: {agent_name} - {response[:50]}...")
+    except Exception as e:
+        print(f"DEBUG: Error writing conversation: {e}")
+        log_orc(f"Error writing to conversation: {e}")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -441,6 +448,7 @@ def orchestrate():
             if accepted_by_arbiter:
                 accepted = True
                 final_response = response_text
+                update_conversation(current_agent, final_response, CONV_PATH)
                 print(f"\n{C_GREEN}  ✓ {ca(current_agent, current_agent.upper())}: "
                       f"\"{final_response[:100]}\"{R}")
                 log_orc(f"Turno {iteration} ACEPTADO. {current_agent}: '{final_response[:80]}'")
