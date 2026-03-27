@@ -157,18 +157,20 @@ def call_arbiter_ollama(response_text, agent_name, interlocutor,
     system_prompt = """Eres un árbitro de calidad conversacional. Tu trabajo es evaluar
 si una respuesta en una conversación de citas es apropiada.
 
-EVALÚA estos criterios:
-1. ¿La respuesta está en español natural? (no inglés, no broken Spanish)
-2. ¿La persona responde al mensaje recibido? (no ignora la pregunta)
-3. ¿La respuesta suena humana? (no como un chatbot o asistente)
-4. ¿No repite exactamente algo que ya se dijo?
-5. ¿Es coherente con el contexto de la conversación?
+CRITERIOS ESTRICTOS DE RECHAZO (rechaza si NO cumple cualquiera):
+1. ¿La respuesta RESPONDE DIRECTAMENTE al último mensaje del interlocutor? (no cambia de tema, no ignora la pregunta/comentario)
+2. ¿La respuesta está en español natural? (no inglés, no broken Spanish)
+3. ¿La respuesta suena humana y natural? (no como un chatbot o asistente)
+4. ¿No repite exactamente frases o ideas de mensajes anteriores?
+5. ¿Es coherente con el contexto de la conversación? (no salta a temas no relacionados)
+6. ¿La respuesta es relevante y continúa la conversación? (no tangentes irrelevantes)
+
+RECHAZA SIEMPRE que la respuesta no responda al mensaje recibido. No aceptes respuestas evasivas o que cambien de tema.
 
 RESPONDE SOLO con este formato JSON (sin markdown, sin texto adicional):
 {"verdict": "accept", "reason": "explicación breve"}
 o
-{"verdict": "reject", "reason": "razón específica del rechazo", "suggestion": "qué debería hacer en su lugar"}
-"""
+{"verdict": "reject", "reason": "razón específica del rechazo", "suggestion": "qué debería hacer en su lugar"}"""
 
     user_prompt = f"""AGENTE: {agent_name.capitalize()}
 CONVERSACIÓN RECIENTE:

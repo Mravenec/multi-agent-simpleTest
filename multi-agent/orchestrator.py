@@ -105,10 +105,8 @@ def update_conversation(agent_name, response, conv_path):
     text = f"\n\n[{ts}] {agent_name.upper()}:\n{response}\n"
     try:
         append_text(conv_path, text)
-        print(f"DEBUG: Conversation updated for {agent_name}: {response[:30]}...")
         log_orc(f"Conversation updated: {agent_name} - {response[:50]}...")
     except Exception as e:
-        print(f"DEBUG: Error writing conversation: {e}")
         log_orc(f"Error writing to conversation: {e}")
 
 
