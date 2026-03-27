@@ -83,12 +83,19 @@ def paths(agent_name):
 # ─────────────────────────────────────────────
 #  UTILIDADES PARA MEMORIA
 # ─────────────────────────────────────────────
-def is_similar_to_memory(response, memory_list):
-    """Verifica si la respuesta es demasiado similar a frases recientes en memoria."""
+def is_similar_to_memory(response, memory_list, threshold=0.7):
+    """Verifica si la respuesta es demasiado similar a frases recientes en memoria usando similitud de Jaccard."""
+    def jaccard_similarity(str1, str2):
+        set1 = set(str1.lower().split())
+        set2 = set(str2.lower().split())
+        intersection = len(set1 & set2)
+        union = len(set1 | set2)
+        return intersection / union if union > 0 else 0.0
+
     response_lower = response.lower()
     for mem in memory_list:
         mem_lower = mem.lower()
-        if mem_lower in response_lower and len(mem) > 10:  # Evitar falsos positivos con palabras cortas
+        if len(mem_lower) > 10 and jaccard_similarity(response_lower, mem_lower) > threshold:
             return True
     return False
 def read_json(path):
