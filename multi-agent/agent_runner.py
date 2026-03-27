@@ -514,10 +514,22 @@ Responde SOLO con tu mensaje de inicio:"""
                 if l.strip() and not l.startswith("#") and not l.startswith("[")
             ]
 
+            # Incluir mensajes recientes de la conversación para evitar repeticiones
+            recent_messages = [entry["message"] for entry in conversation_entries[-5:]]
+
             # ── 3. Llamar a Ollama ──
             print(c(agent_name, "think", "\n  [3/4] Generando respuesta con Ollama..."))
             raw_response = call_ollama(model, system_prompt, user_prompt, temperature)
             print(c(agent_name, "dim", f"  └─ Raw: \"{raw_response[:80]}...\"" if len(raw_response) > 80 else f"  └─ Raw: \"{raw_response}\""))
+
+            # Verificar similitud con memoria propia y conversación reciente
+            all_recent = memory_lines[-5:] + recent_messages
+            if is_similar_to_memory(raw_response, all_recent):
+                print(c(agent_name, "err", "  └─ Respuesta demasiado similar a memoria o conversación reciente, intentando de nuevo..."))
+                # Intentar una vez más con prompt ajustado
+                user_prompt_retry = user_prompt + "\nIMPORTANTE: Crea una respuesta completamente nueva, no uses frases similares a las anteriores o de la conversación."
+                raw_response = call_ollama(model, system_prompt, user_prompt_retry, temperature)
+                print(c(agent_name, "dim", f"  └─ Reintento: \"{raw_response[:80]}...\"" if len(raw_response) > 80 else f"  └─ Reintento: \"{raw_response}\""))
 
             # Verificar similitud con memoria reciente
             if is_similar_to_memory(raw_response, memory_lines[-5:]):
