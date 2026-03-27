@@ -623,7 +623,7 @@ def run_agent(agent_name):
     while True:
         # ── Esperar señal del orquestador ──
         print(c(agent_name, "dim", "  [esperando señal...]"))
-        active = wait_for_signal(agent_name, p)
+        active = wait_for_my_turn(agent_name, p)
         if not active:
             print(c(agent_name, "dim", "\n  Conversación finalizada. Cerrando agente."))
             log(agent_name, "Señal de stop recibida.")
@@ -683,7 +683,7 @@ Responde SOLO con tu mensaje de inicio:"""
             print(c(agent_name, "dim", "  └─ Iniciando conversación dinámicamente."))
             memory_lines = []  # No hay memoria previa para el inicio
         else:
-            system_prompt, user_prompt = build_prompt(
+            system_prompt, user_prompt = build_agent_prompt(
                 agent_name, config, p, conversation_entries, last_message
             )
 
@@ -704,7 +704,7 @@ Responde SOLO con tu mensaje de inicio:"""
 
             # Verificar similitud con memoria propia y conversación reciente
             all_recent = memory_lines[-5:] + recent_messages
-            if is_similar_to_memory(raw_response, all_recent):
+            if is_too_similar_to_memory(raw_response, all_recent):
                 print(c(agent_name, "err", "  └─ Respuesta demasiado similar a memoria o conversación reciente, intentando de nuevo..."))
                 # Intentar una vez más con prompt ajustado
                 user_prompt_retry = user_prompt + "\nIMPORTANTE: Crea una respuesta completamente nueva, no uses frases similares a las anteriores o de la conversación."
@@ -715,7 +715,7 @@ Responde SOLO con tu mensaje de inicio:"""
 
             if not response:
                 # Fallback inteligente: no repetir
-                pool = fallback_pool.get(agent_name, ["..."])
+                pool = FALLBACKS.get(agent_name, ["..."])
                 available = [f for f in pool if f not in used_fallbacks]
                 if not available:
                     used_fallbacks.clear()
@@ -735,7 +735,7 @@ Responde SOLO con tu mensaje de inicio:"""
         approved = wait_for_approval(agent_name, p)
         if approved:
             update_conversation(agent_name, response, p)
-            update_memory(agent_name, response, p)
+            save_to_memory(agent_name, response, p)
             print(c(agent_name, "ok", f"\n  ✓ {agent_name.upper()}: \"{response}\""))
             log(agent_name, f"Respuesta aceptada: '{response}'")
         else:
