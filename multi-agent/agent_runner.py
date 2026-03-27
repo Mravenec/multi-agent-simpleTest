@@ -117,10 +117,10 @@ def is_duplicate_in_conversation(response, conversation_entries, agent_name, thr
             if similarity > threshold:
                 return True
     return False
+
+def read_json(path):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
-
-def write_json(path, data):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
