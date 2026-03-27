@@ -129,12 +129,12 @@ def jaccard_similarity(s1, s2):
     union = len(set1 | set2)
     return inter / union if union > 0 else 0.0
 
-def repetition_reject(response_text, interlocutor_messages):
+def repetition_reject(response_text, recent_messages):
     """
-    Verifica si la respuesta es demasiado similar a mensajes recientes del interlocutor.
+    Verifica si la respuesta es demasiado similar a mensajes recientes.
     Retorna (rejected: bool, reason: str)
     """
-    for msg in interlocutor_messages:
+    for msg in recent_messages:
         sim = jaccard_similarity(response_text, msg)
         if sim > 0.6:
             return True, f"Repite mensaje anterior (similitud {sim:.2f}): '{msg[:50]}'"
@@ -244,8 +244,8 @@ def evaluate_response(response_text, agent_name, interlocutor,
         }
 
     # Paso 2: Verificar repetición
-    interlocutor_messages = [e["message"] for e in conversation_entries if e["agent"] == interlocutor]
-    rejected, reason = repetition_reject(response_text, interlocutor_messages)
+    recent_msgs = [e["message"] for e in conversation_entries[-6:]]
+    rejected, reason = repetition_reject(response_text, recent_msgs)
     if rejected:
         log_arb(f"RECHAZO REPETICIÓN [{agent_name}]: {reason}")
         return {

@@ -299,40 +299,29 @@ def wait_for_my_turn(agent_name, p):
             pass
         time.sleep(0.3)
 
-def signal_done(agent_name, p, response):
-    """Señala que el agente terminó y envía la respuesta."""
-    sig = {
+def signal_done(agent_name, response, p):
+    """Señala al orquestador que este agente terminó su turno."""
+    write_json(p["signal"], {
         "signal": "done",
         "target_agent": agent_name,
         "response": response,
         "timestamp": datetime.now().isoformat()
-    }
-    write_json(p["signal"], sig)
+    })
 
-def wait_for_approval(agent_name, p):
+def check_arbiter_feedback(agent_name, p):
     """
-    Espera la señal de aprobación del árbitro.
-    Retorna True si aprobado, False si rechazado.
+    Lee el archivo arbiter.json para ver si el árbitro rechazó la respuesta.
+    Retorna: (rejected: bool, reason: str, suggestion: str)
     """
-    while True:
-        try:
-            sig = read_json(p["signal"])
-            if sig.get("signal") == "accept" and sig.get("target_agent") == agent_name:
-                return True
-            elif sig.get("signal") == "go" and sig.get("target_agent") == agent_name and sig.get("is_retry"):
-                return False  # Rechazado, reintentar
-        except Exception:
-            pass
-        time.sleep(0.3)
-
-def read_arbiter_feedback(p):
-    """Lee el feedback del árbitro del archivo shared/arbiter.json."""
     try:
-        if os.path.exists(p["arbiter"]):
-            return read_json(p["arbiter"])
+        if not os.path.exists(p["arbiter"]):
+            return False, "", ""
+        arb = read_json(p["arbiter"])
+        if arb.get("target_agent") == agent_name and arb.get("verdict") == "reject":
+            return True, arb.get("reason", ""), arb.get("suggestion", "")
     except Exception:
         pass
-    return None
+    return False, "", ""
 
 
 # ─────────────────────────────────────────────────────────────
@@ -621,129 +610,137 @@ def run_agent(agent_name):
     iteration = 0
 
     while True:
-        # ── Esperar señal del orquestador ──
-        print(c(agent_name, "dim", "  [esperando señal...]"))
+        # ── Esperar turno ──────────────────────────────────────
+        print(c(agent_name, "dim", "  [ en espera... ]"))
         active = wait_for_my_turn(agent_name, p)
+
         if not active:
-            print(c(agent_name, "dim", "\n  Conversación finalizada. Cerrando agente."))
-            log(agent_name, "Señal de stop recibida.")
+            print(c(agent_name, "dim", "\n  Conversación finalizada. Cerrando."))
+            log(agent_name, "Señal stop recibida. Agente cerrando.")
             break
 
         iteration += 1
         ts_now = datetime.now().strftime("%H:%M:%S")
-        print(c(agent_name, "header", f"\n{'─'*55}"))
+        print(c(agent_name, "header", f"\n{'─' * 58}"))
         print(c(agent_name, "header", f"  TURNO #{iteration}  ·  {ts_now}"))
-        print(c(agent_name, "header", f"{'─'*55}"))
+        print(c(agent_name, "header", f"{'─' * 58}"))
 
-        # ── 1. Leer contexto ──
+        # ── 1. Leer contexto ──────────────────────────────────
         print(c(agent_name, "think", "\n  [1/4] Leyendo conversación y memoria..."))
+
         raw_conv = read_text(p["conversation"])
-        conversation_entries = parse_conversation(raw_conv, n=6)
-        last_message = get_last_message(conversation_entries, interlocutor)
+        conversation_entries = parse_conversation(raw_conv, n=8)
+        last_message = get_last_message_from(conversation_entries, interlocutor)
+        own_memory = load_own_memory(p, n=8)
 
         if last_message:
-            print(c(agent_name, "dim", f"  └─ {interlocutor.capitalize()} dijo: \"{last_message}\""))
+            print(c(agent_name, "dim",
+                f"  └─ {interlocutor.capitalize()} dijo: \"{last_message[:70]}\""))
         else:
-            print(c(agent_name, "dim", f"  └─ (inicio de conversación)"))
+            print(c(agent_name, "dim", "  └─ (inicio de conversación)"))
 
-        log(agent_name, f"Turno #{iteration}. Último mensaje: '{last_message}'")
+        print(c(agent_name, "dim",
+            f"  └─ {len(own_memory)} frases en memoria propia"))
 
-        # ── 2. Pensar / analizar ──
-        print(c(agent_name, "think", "\n  [2/4] Analizando y construyendo prompt..."))
-        time.sleep(0.3)  # Simula pensamiento visible
+        log(agent_name, f"Turno #{iteration}. Último msg: '{last_message[:60]}'")
 
-        if not last_message and agent_name == "alex":
-            # Alex inicia la conversación - generate dynamic starting message
-            personality = read_text(p["personality"])
-            system_prompt = f"""Eres {agent_name.capitalize()}, un hombre de 28 años. Estás iniciando una conversación de citas con Sofia, una mujer de 26 años.
+        # ── 2. Construir prompt ───────────────────────────────
+        print(c(agent_name, "think", "\n  [2/4] Construyendo prompt..."))
 
-{personality}
+        # Verificar si el árbitro tiene feedback pendiente
+        arb_rejected, arb_reason, arb_suggestion = check_arbiter_feedback(agent_name, p)
+        if arb_rejected:
+            print(c(agent_name, "warn",
+                f"  └─ ⚠ Árbitro rechazó respuesta anterior: {arb_reason[:60]}"))
+            log(agent_name, f"Árbitro rechazó. Razón: {arb_reason}")
 
-REGLAS PARA EL INICIO:
-- Eres un hombre directo, observador y analítico
-- Inicia con algo intrigante y personal, no genérico
-- Mantén tu tono seguro con toques de sarcasmo inteligente
-- Elige un tema de tus intereses: viajes, fotografía, tecnología, psicología humana
-- NO uses saludos como "Hola" o "¿Cómo estás?"
-- Responde con una sola frase intrigante y corta
+        # Caso especial: Alex abre la conversación
+        is_opening = (not last_message and agent_name == "alex")
 
-Ejemplos de inicio:
-- "Esa foto en tu perfil tiene historia... puedo verlo en tus ojos."
-- "Viajas mucho, ¿cuál fue el último lugar que te hizo sentir viva?"
-- "¿Cuál fue el libro que cambió tu perspectiva sobre el mundo?"
-
-Responde SOLO con tu mensaje de inicio:"""
-
-            user_prompt = f"{agent_name.capitalize()}, inicia la conversación con Sofia:"
-            raw_response = call_ollama(model, system_prompt, user_prompt, temperature)
-            response = clean_response(raw_response, agent_name)
-            if not response:
-                # Fallback if generation fails
-                response = "Viajas mucho, ¿cuál fue el último lugar que te hizo sentir viva?"
-            print(c(agent_name, "dim", "  └─ Iniciando conversación dinámicamente."))
-            memory_lines = []  # No hay memoria previa para el inicio
+        if is_opening:
+            system_prompt, user_prompt = build_opening_prompt(agent_name, p, model)
+            print(c(agent_name, "dim", "  └─ Modo apertura de conversación"))
         else:
             system_prompt, user_prompt = build_agent_prompt(
-                agent_name, config, p, conversation_entries, last_message
+                agent_name, config, p, conversation_entries,
+                last_message, own_memory,
+                arbiter_suggestion=arb_suggestion if arb_rejected else ""
             )
 
-            # Leer memoria para verificar similitud
-            memory_raw = read_text(p["memory"])
-            memory_lines = [
-                l.strip() for l in memory_raw.split("\n")
-                if l.strip() and not l.startswith("#") and not l.startswith("[")
-            ]
+        # ── 3. Llamar a Ollama (instancia propia) ────────────
+        print(c(agent_name, "think", f"\n  [3/4] Llamando Ollama (puerto {port})..."))
 
-            # Incluir mensajes recientes de la conversación para evitar repeticiones
-            recent_messages = [entry["message"] for entry in conversation_entries[-5:]]
+        max_generation_attempts = 3
+        response = ""
 
-            # ── 3. Llamar a Ollama ──
-            print(c(agent_name, "think", "\n  [3/4] Generando respuesta con Ollama..."))
-            raw_response = call_ollama(model, system_prompt, user_prompt, temperature)
-            print(c(agent_name, "dim", f"  └─ Raw: \"{raw_response[:80]}...\"" if len(raw_response) > 80 else f"  └─ Raw: \"{raw_response}\""))
+        for attempt in range(max_generation_attempts):
+            raw = call_ollama(port, model, system_prompt, user_prompt, temperature)
 
-            # Verificar similitud con memoria propia y conversación reciente
-            all_recent = memory_lines[-5:] + recent_messages
-            if is_too_similar_to_memory(raw_response, all_recent):
-                print(c(agent_name, "err", "  └─ Respuesta demasiado similar a memoria o conversación reciente, intentando de nuevo..."))
-                # Intentar una vez más con prompt ajustado
-                user_prompt_retry = user_prompt + "\nIMPORTANTE: Crea una respuesta completamente nueva, no uses frases similares a las anteriores o de la conversación."
-                raw_response = call_ollama(model, system_prompt, user_prompt_retry, temperature)
-                print(c(agent_name, "dim", f"  └─ Reintento: \"{raw_response[:80]}...\"" if len(raw_response) > 80 else f"  └─ Reintento: \"{raw_response}\""))
+            if raw.startswith("["):
+                print(c(agent_name, "err", f"  └─ Error Ollama: {raw}"))
+                log(agent_name, f"Error Ollama: {raw}")
+                break
 
-            response = clean_response(raw_response, agent_name)
+            snippet = raw[:80] + "..." if len(raw) > 80 else raw
+            print(c(agent_name, "dim", f"  └─ Raw [{attempt+1}]: \"{snippet}\""))
 
-            if not response:
-                # Fallback inteligente: no repetir
-                pool = FALLBACKS.get(agent_name, ["..."])
-                available = [f for f in pool if f not in used_fallbacks]
-                if not available:
-                    used_fallbacks.clear()
-                    available = pool
-                response = available[0]
-                used_fallbacks.add(response)
-                print(c(agent_name, "err", f"  └─ Respuesta inválida, usando fallback."))
-                log(agent_name, f"Fallback usado: '{response}'")
+            candidate = clean_response(raw, agent_name)
 
-        # ── 4. Señalar respuesta generada ──
-        print(c(agent_name, "think", "\n  [4/4] Señalando respuesta generada..."))
-        signal_done(agent_name, p, response)
-        print(c(agent_name, "dim", "\n  [señal 'done' enviada con respuesta]"))
+            if not candidate:
+                print(c(agent_name, "warn", "  └─ Respuesta no válida tras limpieza."))
+                user_prompt += "\n(Tu respuesta anterior no fue válida. Intenta de nuevo con una frase completamente diferente.)"
+                continue
 
-        # ── 5. Esperar aprobación del árbitro ──
-        print(c(agent_name, "dim", "  [esperando aprobación del árbitro...]"))
-        approved = wait_for_approval(agent_name, p)
-        if approved:
-            update_conversation(agent_name, response, p)
-            save_to_memory(agent_name, response, p)
-            print(c(agent_name, "ok", f"\n  ✓ {agent_name.upper()}: \"{response}\""))
-            log(agent_name, f"Respuesta aceptada: '{response}'")
-        else:
-            arbiter_feedback = read_arbiter_feedback(p)
-            if arbiter_feedback:
-                print(c(agent_name, "err", f"  ✗ Árbitro rechazó: {arbiter_feedback['reason']}"))
-                log(agent_name, f"Árbitro rechazó: {arbiter_feedback['reason']}")
-            # No escribir respuesta rechazada, continuar al siguiente turno
+            # Verificar similitud con memoria propia
+            too_similar_mem, mem_match, sim_mem = is_too_similar_to_memory(
+                candidate, own_memory
+            )
+            if too_similar_mem:
+                print(c(agent_name, "warn",
+                    f"  └─ Demasiado similar a memoria ({sim_mem:.2f}): \"{mem_match[:50]}\""))
+                user_prompt += f"\n(Evita frases similares a: \"{mem_match[:40]}\")"
+                continue
+
+            # Verificar similitud con conversación reciente
+            too_similar_conv, conv_match, sim_conv = is_too_similar_to_conversation(
+                candidate, conversation_entries
+            )
+            if too_similar_conv:
+                print(c(agent_name, "warn",
+                    f"  └─ Demasiado similar a conversación ({sim_conv:.2f})"))
+                user_prompt += "\n(Evita repetir lo que ya se ha dicho en la conversación.)"
+                continue
+
+            # Pasó todas las validaciones
+            response = candidate
+            print(c(agent_name, "ok",
+                f"  └─ Respuesta válida al intento #{attempt + 1}"))
+            break
+
+        # Fallback si todo falla
+        if not response:
+            response = get_fresh_fallback(agent_name, used_fallbacks)
+            print(c(agent_name, "err",
+                f"  └─ Usando fallback: \"{response}\""))
+            log(agent_name, f"Fallback usado: '{response}'")
+
+        # ── 4. Publicar ───────────────────────────────────────
+        print(c(agent_name, "think", "\n  [4/4] Publicando respuesta..."))
+        update_conversation(agent_name, response, p)
+        save_to_memory(agent_name, response, p)
+
+        print(c(agent_name, "ok", f"\n  ✓ {agent_name.upper()}: \"{response}\""))
+        log(agent_name, f"Respuesta publicada: '{response}'")
+
+        # Señalar al orquestador
+        signal_done(agent_name, response, p)
+        print(c(agent_name, "dim", "  [señal 'done' enviada al orquestador]\n"))
+
+
+# ─────────────────────────────────────────────────────────────
+#  ENTRY POINT
+# ─────────────────────────────────────────────────────────────
+if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Uso: python agent_runner.py <nombre_agente>")
         print("Ejemplo: python agent_runner.py alex")

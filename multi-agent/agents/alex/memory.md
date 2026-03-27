@@ -1,3 +1,4 @@
 # Memoria de Alex
-_Historial de mis propias respuestas. No repetir estas ideas._
+_Esta memoria se actualiza automáticamente. No repitas frases que ya aparecen aquí._
 
+## Inicio de conversación

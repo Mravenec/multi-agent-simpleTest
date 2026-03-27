@@ -129,7 +129,6 @@ def signal_go(agent_name):
     write_json(SIGNAL_PATH, {
         "signal": "go",
         "target_agent": agent_name,
-        "write_response": False,
         "timestamp": datetime.now().isoformat()
     })
 
@@ -139,16 +138,6 @@ def signal_retry(agent_name):
         "signal": "go",          # Mismo 'go', el agente lee arbiter.json
         "target_agent": agent_name,
         "is_retry": True,
-        "write_response": False,
-        "timestamp": datetime.now().isoformat()
-    })
-
-def signal_accept(agent_name):
-    """Señal especial: árbitro aceptó, agente debe escribir la respuesta."""
-    write_json(SIGNAL_PATH, {
-        "signal": "accept",
-        "target_agent": agent_name,
-        "write_response": True,
         "timestamp": datetime.now().isoformat()
     })
 
@@ -211,19 +200,12 @@ def open_agent_terminal(agent_name):
     title = f"AGENTE: {agent_name.upper()}"
     system = platform.system()
 
-    # Heredar variables de entorno críticas para Python
-    env = os.environ.copy()
-    env.update({
-        'PYTHONPATH': os.pathsep.join(sys.path),
-        'PYTHONHOME': os.path.dirname(os.path.dirname(python_exe)),
-    })
-
     try:
         if system == "Windows":
             subprocess.Popen(
                 ["start", title, "cmd", "/k",
                  python_exe, script, agent_name],
-                shell=True, cwd=BASE_DIR, env=env
+                shell=True, cwd=BASE_DIR
             )
 
         elif system == "Darwin":
@@ -255,7 +237,7 @@ def open_agent_terminal(agent_name):
             launched = False
             for em in emulators:
                 try:
-                    subprocess.Popen(em, cwd=BASE_DIR, env=env,
+                    subprocess.Popen(em, cwd=BASE_DIR,
                                      stdout=subprocess.DEVNULL,
                                      stderr=subprocess.DEVNULL)
                     print(f"{C_GRAY}  └─ Terminal: {em[0]}{R}")
@@ -269,7 +251,7 @@ def open_agent_terminal(agent_name):
                       f"Corriendo {agent_name} en background.{R}")
                 subprocess.Popen(
                     [python_exe, script, agent_name],
-                    cwd=BASE_DIR, env=env,
+                    cwd=BASE_DIR,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL
                 )
