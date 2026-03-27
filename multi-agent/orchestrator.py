@@ -95,8 +95,14 @@ def clear():
 def ts():
     return datetime.now().strftime("%H:%M:%S")
 
-def print_separator(char="─", width=62, color=C_GRAY):
-    print(f"{color}{char * width}{R}")
+def append_text(path, text):
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(text)
+
+def update_conversation(agent_name, response, conv_path):
+    """Escribe la respuesta del agente al archivo compartido de conversación."""
+    ts = datetime.now().strftime("%H:%M:%S")
+    append_text(conv_path, f"\n\n[{ts}] {agent_name.upper()}:\n{response}\n")
 
 
 # ─────────────────────────────────────────────────────────────
