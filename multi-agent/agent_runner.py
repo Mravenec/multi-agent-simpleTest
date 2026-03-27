@@ -91,36 +91,11 @@ def is_similar_to_memory(response, memory_list):
         if mem_lower in response_lower and len(mem) > 10:  # Evitar falsos positivos con palabras cortas
             return True
     return False
-
-def is_fallback_used(fallback, memory_list):
-    """Check if fallback was recently used in memory."""
-    fallback_lower = fallback.lower().strip()
-    for mem in memory_list[-10:]:  # Check last 10 memory entries
-        if fallback_lower in mem.lower():
-            return True
-    return False
-
-def is_duplicate_in_conversation(response, conversation_entries, agent_name, threshold=0.5):
-    """Check if response is too similar to recent conversation messages."""
-    response_lower = response.lower().strip()
-    for entry in conversation_entries[-5:]:  # Last 5 messages
-        if entry["agent"] == agent_name:  # Skip own messages
-            continue
-        msg_lower = entry["message"].lower().strip()
-        # Simple similarity: check if 70% of words overlap
-        words_resp = set(response_lower.split())
-        words_msg = set(msg_lower.split())
-        if words_resp and words_msg:
-            intersection = words_resp & words_msg
-            union = words_resp | words_msg
-            similarity = len(intersection) / len(union)
-            if similarity > threshold:
-                return True
-    return False
-
 def read_json(path):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+def write_json(path, data):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
@@ -247,13 +222,6 @@ FORBIDDEN_PATTERNS = [
     "como asistente", "modelo de lenguaje", "soy una ia", "soy un ia",
     "inteligencia artificial", "qwen", "assist you", "eres muy guapa",
     "¿a qué te dedicas", "que tal", "¿qué tal",
-    # New: narration patterns
-    "confieso", "digo", "susurro", "pienso", "siento", "guiñándome", "sonriendo", "riendo",
-    "me guiño", "me sonrío", "me río", "me río", "me río", "me río", # variations
-    # Pronouns breaking immersion
-    "yo ", "me ", "mi ", "mí ", # only if not natural
-    # Repetition markers
-    "...", "uhm", "ehm",
 ]
 
 def clean_response(raw, agent_name):
@@ -287,10 +255,6 @@ def clean_response(raw, agent_name):
     if not lines:
         return ""
     text = "\n".join(lines)  # Mantener párrafos separados por líneas
-
-    # Enforce single line for Alex per personality
-    if agent_name == "alex" and "\n" in text:
-        text = text.split("\n")[0]
 
     # Filtro de patrones prohibidos
     text_lower = text.lower()
@@ -340,47 +304,54 @@ IDENTITY:
 - NEVER speak as the other agent.
 - NEVER narrate actions (no "I said", "she smiled", etc).
 
-RESPONSE REQUIREMENTS:
-- Your response MUST directly address the last message from {interlocutor}.
-- If the last message is a question, ANSWER IT FIRST.
-- Add new information or ask a related question to continue the conversation.
-- Keep responses natural and conversational.
+CONTEXT USAGE:
+- The ONLY message you must respond to is:
+  {last_message}
+
+- Conversation history is only for context, NOT for repetition.
 
 CRITICAL BEHAVIOR RULES:
-1. NEVER repeat sentences or phrases from the conversation history.
+1. NEVER repeat sentences or phrases from the conversation.
 2. NEVER copy or paraphrase the other agent's message.
-3. ALWAYS add new value to the conversation.
-4. NEVER jump to unrelated topics without transition.
-5. Stay in character as defined in your personality.
+3. ALWAYS add new information.
+4. ALWAYS respond directly to the last question if there is one.
+5. If there is a question → answer it FIRST.
+6. THEN expand naturally.
 
 MEMORY RULES:
 - DO NOT invent shared past experiences.
 - DO NOT assume events happened unless explicitly stated.
-- DO NOT create fake memories.
+- DO NOT create fake memories like "when we were in Rome" unless confirmed.
 
 LANGUAGE RULES:
 - Use natural, fluent Spanish.
 - Avoid strange metaphors or nonsensical phrases.
 - Avoid poetic overgeneration.
-- No roleplay narration.
+
+STYLE:
+- Conversational
+- Natural
+- Slightly expressive but NOT exaggerated
+- No roleplay narration
 
 FORBIDDEN:
 - Repeating the same prompt
-- Echoing previous messages
+- Echoing
 - Acting as narrator
 - Switching roles
 - Copying text blocks
-- Using phrases like "confieso", "digo", "susurro", "pienso", "siento"
-- Self-referential narration like "guiñándome el ojo"
 
 OUTPUT FORMAT:
 - Plain text only
-- One coherent message
+- One message
 - No quotes unless necessary
 - No markdown
 
 GOAL:
-Maintain a coherent, realistic conversation where each reply advances the dialogue naturally.
+Maintain a coherent, realistic conversation where each reply:
+- Responds correctly
+- Adds new value
+- Feels human and consistent
 
 {personality}
 
@@ -389,8 +360,8 @@ TU MEMORIA RECIENTE (NO repitas estas frases exactas, varía tu lenguaje):
 """
 
     user_prompt = (
-        f"MENSAJE A RESPONDER de {interlocutor.capitalize()}: {last_message}\n\n"
-        f"CONTEXTO DE LA CONVERSACIÓN RECIENTE (solo para referencia, no repitas):\n{history_text}\n"
+        f"CONVERSACIÓN RECIENTE:\n{history_text}\n"
+        f"Último mensaje de {interlocutor.capitalize()}: {last_message}\n\n"
         f"{agent_name.capitalize()}:"
     )
 
@@ -429,20 +400,12 @@ def signal_done(agent_name, p):
 #  ENCABEZADO DE TERMINAL
 # ─────────────────────────────────────────────
 def print_header(agent_name):
-    p = paths(agent_name)
-    personality_raw = read_text(p["personality"])
-    # Extract first few lines with actual content
-    lines = [l.strip() for l in personality_raw.split("\n") if l.strip() and not l.startswith("#")]
-    personality_summary = " ".join(lines[:3])  # First 3 content lines
-    personality_summary = personality_summary[:100] + "..." if len(personality_summary) > 100 else personality_summary
-
     os.system("cls" if sys.platform == "win32" else "clear")
     width = 55
     name = agent_name.upper()
     print(c(agent_name, "header", "═" * width))
     print(c(agent_name, "header", f"  AGENTE: {name}"))
     print(c(agent_name, "header", "═" * width))
-    print(c(agent_name, "dim", f"  Personalidad: {personality_summary}"))
     print()
 
 
@@ -466,25 +429,11 @@ def run_agent(agent_name):
             "Tu perfil dice que coleccionas momentos... cuéntame uno.",
             "¿Qué parte de tu día merece ser fotografiada hoy?",
             "Algo en cómo escribes me hace querer saber más.",
-            "¿Cuál ha sido tu viaje más memorable hasta ahora?",
-            "Si pudieras capturar un instante perfecto, ¿cuál sería?",
-            "¿Qué te inspira cuando observas a la gente?",
-            "¿Cuál es el libro que más te ha marcado?",
-            "¿Qué lugar del mundo te hace sentir más viva?",
-            "¿Qué aspecto de la tecnología te fascina más?",
-            "¿Cómo describes tu estilo de comunicación?"
         ],
         "sofia": [
             "Depende de cómo lo preguntes...",
             "Eso es lo que querías escuchar, ¿verdad?",
             "Interesante que preguntes eso...",
-            "¿Y si te dijera que depende del contexto?",
-            "Quizás, pero prefiero no generalizar.",
-            "¿Qué te hace pensar que necesito explicarlo?",
-            "Eso suena como una pregunta profunda...",
-            "¿Por qué te importa tanto ese detalle?",
-            "Digamos que la respuesta no es tan simple.",
-            "¿Quieres que sea sincera o diplomática?"
         ]
     }
     used_fallbacks = set()
@@ -582,21 +531,13 @@ Responde SOLO con tu mensaje de inicio:"""
 
             response = clean_response(raw_response, agent_name)
 
-            # Additional duplicate check against conversation
-            if is_duplicate_in_conversation(response, conversation_entries, agent_name, threshold=0.5):
-                print(c(agent_name, "err", "  └─ Respuesta demasiado similar a conversación reciente, intentando de nuevo..."))
-                # Force fallback
-                response = ""
-
             if not response:
                 # Fallback inteligente: no repetir
                 pool = fallback_pool.get(agent_name, ["..."])
-                available = [f for f in pool if f not in used_fallbacks and not is_fallback_used(f, memory_lines)]
+                available = [f for f in pool if f not in used_fallbacks]
                 if not available:
                     used_fallbacks.clear()
-                    available = [f for f in pool if not is_fallback_used(f, memory_lines)]
-                    if not available:
-                        available = pool  # Last resort
+                    available = pool
                 response = available[0]
                 used_fallbacks.add(response)
                 print(c(agent_name, "err", f"  └─ Respuesta inválida, usando fallback."))

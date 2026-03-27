@@ -155,4 +155,3 @@ cat shared/state.json
 | Timeout en respuestas | Aumentar `timeout` en `wait_for_done()` o usar modelo más pequeño |
 | Respuestas contaminadas con markdown | El `clean_response()` en `agent_runner.py` maneja esto |
 | Agente repite frases | La memoria en `memory.md` evita repeticiones; si persiste, borrar el archivo |
----
