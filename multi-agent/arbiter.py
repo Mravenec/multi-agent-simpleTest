@@ -244,8 +244,8 @@ def evaluate_response(response_text, agent_name, interlocutor,
         }
 
     # Paso 2: Verificar repetición
-    recent_msgs = [e["message"] for e in conversation_entries[-6:]]
-    rejected, reason = repetition_reject(response_text, recent_msgs)
+    interlocutor_messages = [e["message"] for e in conversation_entries if e["agent"] == interlocutor]
+    rejected, reason = repetition_reject(response_text, interlocutor_messages)
     if rejected:
         log_arb(f"RECHAZO REPETICIÓN [{agent_name}]: {reason}")
         return {
