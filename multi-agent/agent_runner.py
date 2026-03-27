@@ -99,6 +99,8 @@ def is_fallback_used(fallback, memory_list):
         if fallback_lower in mem.lower():
             return True
     return False
+
+def is_duplicate_in_conversation(response, conversation_entries, agent_name, threshold=0.5):
     """Check if response is too similar to recent conversation messages."""
     response_lower = response.lower().strip()
     for entry in conversation_entries[-5:]:  # Last 5 messages
@@ -114,7 +116,7 @@ def is_fallback_used(fallback, memory_list):
             similarity = len(intersection) / len(union)
             if similarity > threshold:
                 return True
-def read_json(path):
+    return False
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
